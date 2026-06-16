@@ -99,6 +99,14 @@ export async function extractDocument(
     //    weak on images, so don't return poor results silently).
     //  - PDF + vision fails → fall back to heuristics (a PDF has a text layer;
     //    never hard-fail it on the AI layer).
+    // Not-a-document check for images runs FIRST, locally — a cheap pixel
+    // heuristic rejects obvious photos before we ever call the AI. This both
+    // saves a (possibly rate-limited) AI request and means a non-document image
+    // is reported as NOT_A_DOCUMENT rather than surfacing an AI error.
+    if (isImage && !(await looksLikeDocument(firstPage))) {
+      throw new ExtractionError("NOT_A_DOCUMENT", DEFAULT_MESSAGES.NOT_A_DOCUMENT);
+    }
+
     const visionBoxes: Partial<Record<RegionKind, BoundingBox>> = {};
     if (isVisionEnabled()) {
       const [firstVision, lastVision] = await Promise.all([
@@ -106,9 +114,8 @@ export async function extractDocument(
         runVision(lastPage, ["signature", "footer"], isImage),
       ]);
 
-      // Not-a-document check (image inputs only). The page-1 verdict is the
-      // document judgement; an explicit non-document image is rejected. Only
-      // applies when vision actually ran (firstVision is non-null).
+      // Secondary not-a-document check: if the model explicitly judges the
+      // (document-like-by-pixels) image a non-document, trust it.
       if (isImage && firstVision && firstVision.isDocument === false) {
         throw new ExtractionError(
           "NOT_A_DOCUMENT",
@@ -121,15 +128,6 @@ export async function extractDocument(
         firstVision?.boxes ?? {},
         lastVision?.boxes ?? {},
       );
-    } else if (isImage) {
-      // Vision disabled: a light pixel heuristic guards against obvious photos.
-      // Conservative — only the clearly-non-document is rejected.
-      if (!(await looksLikeDocument(firstPage))) {
-        throw new ExtractionError(
-          "NOT_A_DOCUMENT",
-          DEFAULT_MESSAGES.NOT_A_DOCUMENT,
-        );
-      }
     }
 
     // Encode crops for detections + a downscaled preview for every page.
