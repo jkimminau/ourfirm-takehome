@@ -1,5 +1,7 @@
 # Deploys the processing backend to Heroku as a container, built remotely from
-# apps/server/Dockerfile (no local Docker needed). The client deploys to Vercel.
+# Dockerfile.server (no local Docker needed). The client deploys to Vercel.
+# NB: Heroku uses the Dockerfile's directory as the build context, so the
+# monorepo Dockerfiles live at the repo root.
 #
 #   heroku create <app> && heroku stack:set container -a <app>
 #   heroku config:set CORS_ORIGINS=https://<your-vercel-app>.vercel.app -a <app>
@@ -8,4 +10,4 @@
 # The server reads $PORT (set by Heroku) and binds 0.0.0.0 — see apps/server/src/config.ts.
 build:
   docker:
-    web: apps/server/Dockerfile
+    web: Dockerfile.server

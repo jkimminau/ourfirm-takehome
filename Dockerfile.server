@@ -1,5 +1,5 @@
 # Document-processing backend (Fastify + sharp + pdfjs + @napi-rs/canvas).
-# Build context is the monorepo root: `docker build -f apps/server/Dockerfile .`
+# Build context is the monorepo root: `docker build -f Dockerfile.server .`
 #
 # Debian slim (glibc) rather than Alpine — the native deps (sharp/libvips,
 # @napi-rs/canvas) ship prebuilt glibc binaries that "just work" here.

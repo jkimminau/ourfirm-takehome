@@ -4,7 +4,7 @@ services:
   server:
     build:
       context: .
-      dockerfile: apps/server/Dockerfile
+      dockerfile: Dockerfile.server
     ports:
       - "4000:4000"
     environment:
@@ -21,7 +21,7 @@ services:
   web:
     build:
       context: .
-      dockerfile: apps/web/Dockerfile
+      dockerfile: Dockerfile.web
       args:
         # Baked into the client bundle at build time. The browser runs on the
         # host, so it reaches the server via the published port on localhost.

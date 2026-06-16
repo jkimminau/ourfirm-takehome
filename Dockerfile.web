@@ -1,5 +1,5 @@
 # Next.js client. Build context is the monorepo root:
-# `docker build -f apps/web/Dockerfile .`
+# `docker build -f Dockerfile.web .`
 #
 # NEXT_PUBLIC_API_URL is inlined into the client bundle at BUILD time, so it is
 # a build arg. For local compose it points at the published server port on the
