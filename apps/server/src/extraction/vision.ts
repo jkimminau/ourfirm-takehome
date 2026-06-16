@@ -14,11 +14,39 @@ import type { RasterPage } from "./rasterize.js";
  * denormalize into page-pixel space using `page.width`/`page.height`.
  *
  * The caller treats this as a refine/override layer: any box returned here is
- * used as `detectedBy: "ai"`; any kind the model omits (or any failure) falls
- * back to the in-repo heuristics. This module therefore THROWS on any error
- * (missing key, network, malformed/parse) so the caller's try/catch can fall
- * back cleanly — it must never silently return partial-but-wrong data.
+ * used as `detectedBy: "ai"`; any kind the model omits falls back to the
+ * in-repo heuristics. The model also reports whether the page even looks like a
+ * document, which the caller uses to reject photos for image inputs.
+ *
+ * Every failure is classified and re-thrown as a typed `VisionError` (kind
+ * "rate_limited" | "unavailable") so the orchestrator can decide policy by
+ * input type — propagate a precise AI error for images, or silently fall back
+ * to heuristics for PDFs. This module never throws an unclassified error.
  */
+
+/** A classified vision-layer failure the orchestrator maps to an AI error code. */
+export type VisionErrorKind = "rate_limited" | "unavailable";
+
+export class VisionError extends Error {
+  readonly kind: VisionErrorKind;
+  constructor(kind: VisionErrorKind, message: string) {
+    super(message);
+    this.name = "VisionError";
+    this.kind = kind;
+    Object.setPrototypeOf(this, VisionError.prototype);
+  }
+}
+
+export function isVisionError(value: unknown): value is VisionError {
+  return value instanceof VisionError;
+}
+
+/** Result of a vision page analysis: the located boxes + a document verdict. */
+export interface VisionPageResult {
+  boxes: Partial<Record<RegionKind, BoundingBox>>;
+  /** Whether the model judged the page to be a document (vs. a photo/picture). */
+  isDocument: boolean;
+}
 
 /** Per-kind instruction so the model matches our region definitions exactly. */
 const KIND_GUIDANCE: Record<RegionKind, string> = {
@@ -42,29 +70,43 @@ interface VisionDetection {
 }
 
 /**
- * The structured-output schema. We force an array of {kind, box_2d} objects so
- * the response is trivially parseable and we never have to scrape free text.
+ * The structured-output schema: an object carrying an `is_document` verdict and
+ * a `regions` array of {kind, box_2d}. Forcing structured JSON means we never
+ * scrape free text, and we get the document classification in the same call.
  */
 const RESPONSE_SCHEMA: Schema = {
-  type: Type.ARRAY,
-  items: {
-    type: Type.OBJECT,
-    properties: {
-      kind: {
-        type: Type.STRING,
-        description: "Which region this box locates.",
-      },
-      box_2d: {
-        type: Type.ARRAY,
-        description:
-          "Bounding box [ymin, xmin, ymax, xmax], each normalized to 0-1000.",
-        items: { type: Type.NUMBER },
-        minItems: "4",
-        maxItems: "4",
+  type: Type.OBJECT,
+  properties: {
+    is_document: {
+      type: Type.BOOLEAN,
+      description:
+        "True if the image is a document (a letter, form, scan, memo, " +
+        "invoice, contract, etc.). False if it is a photo, screenshot of " +
+        "something non-document, artwork, or other picture.",
+    },
+    regions: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          kind: {
+            type: Type.STRING,
+            description: "Which region this box locates.",
+          },
+          box_2d: {
+            type: Type.ARRAY,
+            description:
+              "Bounding box [ymin, xmin, ymax, xmax], each normalized to 0-1000.",
+            items: { type: Type.NUMBER },
+            minItems: "4",
+            maxItems: "4",
+          },
+        },
+        required: ["kind", "box_2d"],
       },
     },
-    required: ["kind", "box_2d"],
   },
+  required: ["is_document", "regions"],
 };
 
 // One client per process; constructing it is cheap but pointless to repeat.
@@ -78,79 +120,158 @@ function getClient(): GoogleGenAI {
 }
 
 /**
- * Ask Gemini to locate the requested region kinds on `page`. Returns a map from
- * the kinds the model DID find to their boxes in page-pixel space. Kinds the
- * model couldn't find are simply absent. Throws on any error.
+ * Ask Gemini to locate the requested region kinds on `page` and judge whether
+ * the page is a document. Returns the boxes (page-pixel space) for the kinds
+ * the model found, plus `isDocument`. Kinds the model couldn't find are absent.
+ *
+ * Any failure (missing key, auth, network, 5xx, rate/quota, empty/unparseable
+ * response) is classified and thrown as a typed `VisionError` so the caller can
+ * apply per-input-type policy. Never throws an unclassified error.
  */
 export async function detectRegionsWithVision(
   page: RasterPage,
   kinds: RegionKind[],
-): Promise<Partial<Record<RegionKind, BoundingBox>>> {
-  if (kinds.length === 0) return {};
-
-  const ai = getClient();
+): Promise<VisionPageResult> {
+  let ai: GoogleGenAI;
+  try {
+    ai = getClient();
+  } catch (error) {
+    // No key / client construction failure — the service is unavailable to us.
+    throw classifyVisionError(error);
+  }
 
   const wanted = kinds.map((k) => `- ${KIND_GUIDANCE[k]}`).join("\n");
   const prompt =
-    "You are a precise document-layout detector. Examine the page image and " +
-    "locate ONLY the following regions, if present:\n" +
+    "You are a precise document-layout detector. First decide whether the " +
+    "image is a DOCUMENT (a letter, form, scan, memo, invoice, contract, " +
+    "etc.) as opposed to a photo, artwork, or other picture, and report that " +
+    "as `is_document`.\n\n" +
+    "Then locate ONLY the following regions, if present:\n" +
     `${wanted}\n\n` +
-    "Return one entry per region you can locate, using exactly these `kind` " +
-    `values: ${kinds.join(", ")}. If a region is not present, omit it ` +
-    "entirely — do not guess. Each box must be [ymin, xmin, ymax, xmax] " +
-    "normalized to 0-1000 with the origin at the top-left corner.";
+    "Return one `regions` entry per region you can locate, using exactly " +
+    `these \`kind\` values: ${kinds.join(", ")}. If a region is not present, ` +
+    "omit it entirely — do not guess. Each box must be [ymin, xmin, ymax, " +
+    "xmax] normalized to 0-1000 with the origin at the top-left corner.";
 
-  const response = await ai.models.generateContent({
-    model: config.geminiModel,
-    contents: [
-      {
-        role: "user",
-        parts: [
-          { text: prompt },
-          {
-            inlineData: {
-              mimeType: "image/png",
-              data: page.png.toString("base64"),
+  let response: Awaited<ReturnType<typeof ai.models.generateContent>>;
+  try {
+    response = await ai.models.generateContent({
+      model: config.geminiModel,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                mimeType: "image/png",
+                data: page.png.toString("base64"),
+              },
             },
-          },
-        ],
+          ],
+        },
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: RESPONSE_SCHEMA,
+        // Detection is deterministic-ish; keep it from wandering.
+        temperature: 0,
       },
-    ],
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: RESPONSE_SCHEMA,
-      // Detection is deterministic-ish; keep it from wandering.
-      temperature: 0,
-    },
-  });
+    });
+  } catch (error) {
+    // Network / auth / 5xx / rate-limit / safety block all surface here.
+    throw classifyVisionError(error);
+  }
 
   const raw = response.text;
   if (!raw) {
-    throw new Error("Gemini vision returned an empty response.");
+    // Empty body — often a safety block or a truncated/blocked candidate.
+    throw new VisionError(
+      "unavailable",
+      "The document-analysis service returned an empty response.",
+    );
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new Error("Gemini vision returned non-JSON output.");
+    throw new VisionError(
+      "unavailable",
+      "The document-analysis service returned an unreadable response.",
+    );
   }
-  if (!Array.isArray(parsed)) {
-    throw new Error("Gemini vision response was not a JSON array.");
+  if (typeof parsed !== "object" || parsed === null) {
+    throw new VisionError(
+      "unavailable",
+      "The document-analysis service returned an unexpected response.",
+    );
   }
+
+  const obj = parsed as { is_document?: unknown; regions?: unknown };
+  // Default to true: only an explicit `false` rejects a page as not-a-document,
+  // so a quirk in the verdict never mislabels a real scan.
+  const isDocument = obj.is_document !== false;
+  const regions = Array.isArray(obj.regions)
+    ? (obj.regions as VisionDetection[])
+    : [];
 
   const requested = new Set<RegionKind>(kinds);
-  const out: Partial<Record<RegionKind, BoundingBox>> = {};
+  const boxes: Partial<Record<RegionKind, BoundingBox>> = {};
 
-  for (const entry of parsed as VisionDetection[]) {
+  for (const entry of regions) {
     const kind = entry?.kind as RegionKind;
     if (!requested.has(kind)) continue; // ignore unknown / unrequested kinds
-    if (out[kind]) continue; // keep the first box for a kind
+    if (boxes[kind]) continue; // keep the first box for a kind
     const box = denormalizeBox(entry.box_2d, page.width, page.height);
-    if (box) out[kind] = box;
+    if (box) boxes[kind] = box;
   }
 
-  return out;
+  return { boxes, isDocument };
+}
+
+/**
+ * Classify a thrown value from the Gemini call into a typed VisionError.
+ *
+ * The `@google/genai` SDK throws an `ApiError`-shaped object exposing `status`
+ * (numeric HTTP code), `name`, and `message`. We match on the status and the
+ * message text rather than `instanceof` because the error may be re-thrown as a
+ * plain object or wrapped by fetch.
+ *
+ * - rate / quota / token-limit (HTTP 429, or messages mentioning quota / rate /
+ *   limit / exhausted / RESOURCE_EXHAUSTED) → "rate_limited" (→ AI_RATE_LIMITED).
+ * - everything else — auth (401/403/API key), network, 5xx, safety block,
+ *   empty/unparseable — → "unavailable" (→ AI_UNAVAILABLE).
+ */
+function classifyVisionError(error: unknown): VisionError {
+  if (error instanceof VisionError) return error;
+
+  const e = error as
+    | { status?: unknown; code?: unknown; name?: string; message?: string }
+    | null;
+  const status = typeof e?.status === "number" ? e.status : undefined;
+  const codeNum = typeof e?.code === "number" ? e.code : undefined;
+  const httpStatus = status ?? codeNum;
+  const message = e?.message ?? String(error ?? "");
+  const haystack = `${e?.name ?? ""} ${message}`.toLowerCase();
+
+  const looksRateLimited =
+    httpStatus === 429 ||
+    /resource[_ ]?exhausted|quota|rate.?limit|too many requests|exhausted|token limit/.test(
+      haystack,
+    );
+
+  if (looksRateLimited) {
+    return new VisionError(
+      "rate_limited",
+      "The document-analysis service is rate-limited right now.",
+    );
+  }
+
+  return new VisionError(
+    "unavailable",
+    "The document-analysis service is unavailable right now.",
+  );
 }
 
 /**

@@ -24,14 +24,23 @@ export class ExtractionError extends Error {
 /** Default, user-facing messages keyed by code, used where no bespoke copy is needed. */
 export const DEFAULT_MESSAGES: Record<ExtractionErrorCode, string> = {
   UNSUPPORTED_FILE_TYPE:
-    "That file isn't a PDF. Please upload a PDF document.",
+    "That file isn't a supported document. Please upload a PDF or image.",
   FILE_TOO_LARGE: "That file is too large. The maximum upload size is 25 MB.",
   EMPTY_FILE: "That file is empty or did not finish uploading.",
   CORRUPT_DOCUMENT:
-    "We couldn't read that PDF — it appears to be damaged or malformed.",
+    "We couldn't read that file — it appears to be damaged or malformed.",
   PASSWORD_PROTECTED:
     "That PDF is password-protected. Please upload an unlocked copy.",
   NO_PAGES: "That PDF has no pages to process.",
+  NOT_A_DOCUMENT:
+    "That image doesn't look like a document — it appears to be a photo or " +
+    "picture. Please upload a scan or image of a document.",
+  AI_UNAVAILABLE:
+    "The document-analysis service is temporarily unavailable. Please try " +
+    "again in a few moments.",
+  AI_RATE_LIMITED:
+    "The document-analysis service is busy right now (rate limit reached). " +
+    "Please wait a moment and try again.",
   UPLOAD_INTERRUPTED:
     "The upload didn't complete. Please try uploading the file again.",
   PROCESSING_FAILED:

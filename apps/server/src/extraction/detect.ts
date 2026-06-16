@@ -5,6 +5,62 @@ import type { RasterPage, TextWord } from "./rasterize.js";
 
 export { extractTextInBox };
 
+/**
+ * Heuristic "does this image look like a document?" check, used ONLY for image
+ * inputs when the Gemini vision layer is disabled (PDFs are documents by
+ * definition; the AI path has its own `isDocument` verdict).
+ *
+ * Documents are overwhelmingly dark ink on a light, low-saturation background.
+ * Photos are the opposite: colourful (high saturation) and often dark overall.
+ * We sample the image small and cheap and reject only the OBVIOUS non-document:
+ * a colourful or dark picture. The thresholds are deliberately permissive so a
+ * real scanned letter — even an off-white or faintly toned one — always passes.
+ */
+export async function looksLikeDocument(page: RasterPage): Promise<boolean> {
+  // Downsample to a tiny thumbnail; stats over a few thousand pixels are plenty
+  // to tell "paper" from "photo" and keep this near-free.
+  const SAMPLE = 64;
+  const { data, info } = await sharp(page.png)
+    .resize({ width: SAMPLE, height: SAMPLE, fit: "inside" })
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const channels = info.channels; // 3 after removeAlpha (RGB)
+  const pixels = info.width * info.height;
+  if (pixels === 0) return true; // can't judge — don't reject
+
+  let sumLightness = 0; // 0..255, max channel ≈ perceived brightness
+  let sumSaturation = 0; // 0..1, (max-min)/max
+  let lightPixels = 0; // near-white background pixels
+
+  for (let i = 0; i < data.length; i += channels) {
+    const r = data[i]!;
+    const g = data[i + 1]!;
+    const b = data[i + 2]!;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    sumLightness += max;
+    sumSaturation += max === 0 ? 0 : (max - min) / max;
+    if (max >= 200 && max - min <= 40) lightPixels += 1; // bright & near-grey
+  }
+
+  const avgLightness = sumLightness / pixels; // 0..255
+  const avgSaturation = sumSaturation / pixels; // 0..1
+  const lightFraction = lightPixels / pixels; // 0..1
+
+  // A document is dark ink on a mostly bright, low-saturation page. The two
+  // tell-tale signs of a NON-document photo are (a) genuine colour saturation
+  // and (b) the lack of a substantial near-white "paper" background. We reject
+  // only when BOTH hold, so a toned/off-white scan (low saturation → not
+  // "colourful") or a dense form (little white, but desaturated) still passes.
+  // A near-black image with no paper is also rejected.
+  const colourful = avgSaturation > 0.28;
+  const noPaper = lightFraction < 0.2;
+  const tooDark = avgLightness < 90;
+  return !((colourful && noPaper) || (tooDark && noPaper));
+}
+
 /** Outcome of running a region heuristic against a page. */
 export interface Detection {
   kind: RegionKind;

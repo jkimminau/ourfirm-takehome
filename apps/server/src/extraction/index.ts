@@ -10,17 +10,27 @@ import {
 import { isVisionEnabled } from "../config.js";
 import { DEFAULT_MESSAGES, ExtractionError } from "./errors.js";
 import { validateDocument } from "./validate.js";
-import { rasterizeDocument, type RasterPage } from "./rasterize.js";
+import {
+  rasterizeDocument,
+  rasterizeImage,
+  type RasterPage,
+} from "./rasterize.js";
 import {
   detectFooter,
   detectLetterhead,
   detectSignature,
   extractTextInBox,
   isDetection,
+  looksLikeDocument,
   type DetectResult,
 } from "./detect.js";
 import { cropRegion, encodePagePreview, toPageRef } from "./crop.js";
-import { detectRegionsWithVision } from "./vision.js";
+import {
+  detectRegionsWithVision,
+  isVisionError,
+  type VisionError,
+  type VisionPageResult,
+} from "./vision.js";
 
 /** Confidence we attach to a region the AI vision layer located. */
 const AI_CONFIDENCE = 0.9;
@@ -40,10 +50,16 @@ export async function extractDocument(
   fileName: string,
 ): Promise<ExtractionResult> {
   // Validation throws its own well-typed ExtractionErrors; let them through.
-  await validateDocument(bytes, fileName);
+  // It also reports the concrete kind so we pick the right rasterizer.
+  const { kind } = await validateDocument(bytes, fileName);
+  const isImage = kind === "image";
 
-  // Rasterization throws PASSWORD_PROTECTED / CORRUPT_DOCUMENT / NO_PAGES.
-  const pages = await rasterizeDocument(bytes);
+  // PDFs go through pdfjs (text layer + every page); images become a single
+  // page via sharp. Both throw PASSWORD_PROTECTED / CORRUPT_DOCUMENT / NO_PAGES
+  // as appropriate.
+  const pages = isImage
+    ? await rasterizeImage(bytes)
+    : await rasterizeDocument(bytes);
   if (pages.length === 0) {
     throw new ExtractionError("NO_PAGES", DEFAULT_MESSAGES.NO_PAGES);
   }
@@ -75,17 +91,45 @@ export async function extractDocument(
 
     // Optional refine/override layer: ask Gemini to locate the regions and use
     // its boxes where returned. Letterhead lives on page 1; signature + footer
-    // on the last page. Each page's vision call is wrapped so a failure (no
-    // key, network, parse) silently falls back to the heuristic — extraction
-    // must NEVER fail because of vision. The heuristic page each kind was found
-    // on is preserved so crops/text come from the right raster.
+    // on the last page. The heuristic page each kind was found on is preserved
+    // so crops/text come from the right raster.
+    //
+    // Error policy by input type (see runVision):
+    //  - Image + vision fails → propagate the typed AI error (heuristics are
+    //    weak on images, so don't return poor results silently).
+    //  - PDF + vision fails → fall back to heuristics (a PDF has a text layer;
+    //    never hard-fail it on the AI layer).
     const visionBoxes: Partial<Record<RegionKind, BoundingBox>> = {};
     if (isVisionEnabled()) {
       const [firstVision, lastVision] = await Promise.all([
-        visionForPage(firstPage, ["letterhead"]),
-        visionForPage(lastPage, ["signature", "footer"]),
+        runVision(firstPage, ["letterhead"], isImage),
+        runVision(lastPage, ["signature", "footer"], isImage),
       ]);
-      Object.assign(visionBoxes, firstVision, lastVision);
+
+      // Not-a-document check (image inputs only). The page-1 verdict is the
+      // document judgement; an explicit non-document image is rejected. Only
+      // applies when vision actually ran (firstVision is non-null).
+      if (isImage && firstVision && firstVision.isDocument === false) {
+        throw new ExtractionError(
+          "NOT_A_DOCUMENT",
+          DEFAULT_MESSAGES.NOT_A_DOCUMENT,
+        );
+      }
+
+      Object.assign(
+        visionBoxes,
+        firstVision?.boxes ?? {},
+        lastVision?.boxes ?? {},
+      );
+    } else if (isImage) {
+      // Vision disabled: a light pixel heuristic guards against obvious photos.
+      // Conservative — only the clearly-non-document is rejected.
+      if (!(await looksLikeDocument(firstPage))) {
+        throw new ExtractionError(
+          "NOT_A_DOCUMENT",
+          DEFAULT_MESSAGES.NOT_A_DOCUMENT,
+        );
+      }
     }
 
     // Encode crops for detections + a downscaled preview for every page.
@@ -116,19 +160,44 @@ export async function extractDocument(
 }
 
 /**
- * Run the vision layer for one page, returning a kind→box map. Wrapped so any
- * failure (no key, network, malformed response) yields {} and the caller falls
- * back to the heuristic for every kind on this page. Never throws.
+ * Run the vision layer for one page under the per-input-type error policy.
+ *
+ * On success: the VisionPageResult (boxes + isDocument).
+ * On a classified VisionError:
+ *   - image input → re-throw as the matching AI ExtractionError
+ *     (rate_limited → AI_RATE_LIMITED, unavailable → AI_UNAVAILABLE) so the
+ *     user sees exactly why; the orchestrator's catch lets ExtractionErrors
+ *     through unchanged.
+ *   - PDF input → swallow and return null, so every kind on this page falls
+ *     back to the heuristic (a PDF must never hard-fail on the AI layer).
+ * Any non-VisionError is unexpected here (vision classifies everything), so it
+ * is treated as the conservative AI_UNAVAILABLE for images / fallback for PDFs.
  */
-async function visionForPage(
+async function runVision(
   page: RasterPage,
   kinds: RegionKind[],
-): Promise<Partial<Record<RegionKind, BoundingBox>>> {
+  isImage: boolean,
+): Promise<VisionPageResult | null> {
   try {
     return await detectRegionsWithVision(page, kinds);
-  } catch {
-    return {};
+  } catch (error) {
+    if (!isImage) return null; // PDF: silent fallback to heuristics.
+    throw toAiError(error);
   }
+}
+
+/** Map a vision-layer failure onto the surfaced AI ExtractionError code. */
+function toAiError(error: unknown): ExtractionError {
+  const kind: VisionError["kind"] | undefined = isVisionError(error)
+    ? error.kind
+    : undefined;
+  if (kind === "rate_limited") {
+    return new ExtractionError(
+      "AI_RATE_LIMITED",
+      DEFAULT_MESSAGES.AI_RATE_LIMITED,
+    );
+  }
+  return new ExtractionError("AI_UNAVAILABLE", DEFAULT_MESSAGES.AI_UNAVAILABLE);
 }
 
 /**

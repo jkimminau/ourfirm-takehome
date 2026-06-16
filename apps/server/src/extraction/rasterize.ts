@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { createCanvas } from "@napi-rs/canvas";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
+import sharp from "sharp";
 
 import { DEFAULT_MESSAGES, ExtractionError } from "./errors.js";
 
@@ -19,6 +20,15 @@ import { DEFAULT_MESSAGES, ExtractionError } from "./errors.js";
  * uses ONE pdfjs version for both rendering and text, and avoids a second parse.
  */
 export const RENDER_SCALE = 2;
+
+/**
+ * Max width we rasterize an uploaded image to. Mirrors the effective resolution
+ * of a PDF page rendered at RENDER_SCALE (a US-Letter page at 2x ≈ 1224px wide,
+ * Legal/oversize a bit more), so the heuristics and crop encoder see comparable
+ * detail whether the source was a PDF or a standalone image. Larger images are
+ * downscaled; smaller ones are never enlarged.
+ */
+export const IMAGE_MAX_WIDTH = 1600;
 
 /** A single rasterized page plus the words pdfjs found on it (image pixel space). */
 export interface RasterPage {
@@ -93,6 +103,49 @@ export async function rasterizeDocument(bytes: Buffer): Promise<RasterPage[]> {
     await doc.loadingTask.destroy().catch(() => {
       /* best-effort cleanup; never mask the real error */
     });
+  }
+}
+
+/**
+ * Rasterize a standalone image (PNG/JPEG) into a single-page RasterPage so it
+ * flows through the same detect → crop → preview pipeline as a PDF page.
+ *
+ * The image is flattened onto white (so transparent PNGs and CMYK/odd-channel
+ * JPEGs encode cleanly and match the heuristics' assumption of dark ink on
+ * white paper), downscaled to IMAGE_MAX_WIDTH if larger, and re-encoded as PNG.
+ * There is no text layer in an image, so `words` is empty — every region falls
+ * to the pixel heuristics (or the vision layer) and signature text is "".
+ *
+ * Throws CORRUPT_DOCUMENT if sharp can't decode the bytes (truncated/garbage
+ * image that nonetheless slipped past magic-byte validation).
+ */
+export async function rasterizeImage(bytes: Buffer): Promise<RasterPage[]> {
+  try {
+    const pipeline = sharp(bytes)
+      // Honour EXIF orientation so a phone-rotated scan isn't analysed sideways.
+      .rotate()
+      .flatten({ background: { r: 255, g: 255, b: 255 } })
+      .resize({ width: IMAGE_MAX_WIDTH, withoutEnlargement: true });
+
+    const { data, info } = await pipeline
+      .png()
+      .toBuffer({ resolveWithObject: true });
+
+    return [
+      {
+        index: 0,
+        png: data,
+        width: info.width,
+        height: info.height,
+        words: [],
+      },
+    ];
+  } catch (error) {
+    if (error instanceof ExtractionError) throw error;
+    throw new ExtractionError(
+      "CORRUPT_DOCUMENT",
+      DEFAULT_MESSAGES.CORRUPT_DOCUMENT,
+    );
   }
 }
 
