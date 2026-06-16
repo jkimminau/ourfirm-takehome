@@ -27,6 +27,12 @@ export const config = {
    * shifts again.
    */
   geminiModel: process.env.GEMINI_MODEL ?? "gemini-3.5-flash",
+  /**
+   * Max time to wait on a Gemini call before giving up and falling back to the
+   * heuristics. Bounds the wait when the service is slow/unreachable (a
+   * rate-limit 429 already returns fast).
+   */
+  geminiTimeoutMs: Number(process.env.GEMINI_TIMEOUT_MS ?? 12000),
 } as const;
 
 /** True when the optional Gemini vision layer is configured (API key present). */

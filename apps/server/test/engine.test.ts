@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import sharp from "sharp";
 
 import { MAX_UPLOAD_BYTES, isDetected, type Region } from "@ourfirm/shared";
 import {
@@ -96,5 +97,42 @@ test("a malformed PDF surfaces as CORRUPT_DOCUMENT", async () => {
   await expectError(
     async () => extractDocument(await read("corrupt.pdf"), "corrupt.pdf"),
     "CORRUPT_DOCUMENT",
+  );
+});
+
+// --- image input ----------------------------------------------------------
+
+test("validateDocument accepts a PNG image", async () => {
+  const png = await sharp({
+    create: { width: 64, height: 64, channels: 3, background: "#ffffff" },
+  })
+    .png()
+    .toBuffer();
+  const { kind } = await validateDocument(png, "scan.png");
+  assert.equal(kind, "image");
+});
+
+test("an image is processed as a single-page document", async () => {
+  const result = await extractDocument(
+    await read("letter-photo.png"),
+    "letter-photo.png",
+  );
+  assert.equal(result.pageCount, 1);
+  assert.equal(result.previews.length, 1);
+  // No vision key in the test env → heuristic detection; a letter-like image
+  // should at least yield the positional letterhead.
+  assert.equal(byKind(result.regions).letterhead.status, "detected");
+});
+
+test("a non-document image is rejected as NOT_A_DOCUMENT", async () => {
+  // A saturated, dark, paper-less image is clearly not a document.
+  const photo = await sharp({
+    create: { width: 600, height: 600, channels: 3, background: "#a8228a" },
+  })
+    .png()
+    .toBuffer();
+  await expectError(
+    async () => extractDocument(photo, "photo.png"),
+    "NOT_A_DOCUMENT",
   );
 });

@@ -41,6 +41,28 @@ export function isVisionError(value: unknown): value is VisionError {
   return value instanceof VisionError;
 }
 
+/** Reject with a VisionError if `work` doesn't settle within `ms`. */
+async function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () =>
+        reject(
+          new VisionError(
+            "unavailable",
+            "The document-analysis service timed out.",
+          ),
+        ),
+      ms,
+    );
+  });
+  try {
+    return await Promise.race([work, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Result of a vision page analysis: the located boxes + a document verdict. */
 export interface VisionPageResult {
   boxes: Partial<Record<RegionKind, BoundingBox>>;
@@ -155,31 +177,34 @@ export async function detectRegionsWithVision(
 
   let response: Awaited<ReturnType<typeof ai.models.generateContent>>;
   try {
-    response = await ai.models.generateContent({
-      model: config.geminiModel,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: prompt },
-            {
-              inlineData: {
-                mimeType: "image/png",
-                data: page.png.toString("base64"),
+    response = await withTimeout(
+      ai.models.generateContent({
+        model: config.geminiModel,
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: prompt },
+              {
+                inlineData: {
+                  mimeType: "image/png",
+                  data: page.png.toString("base64"),
+                },
               },
-            },
-          ],
+            ],
+          },
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: RESPONSE_SCHEMA,
+          // Detection is deterministic-ish; keep it from wandering.
+          temperature: 0,
         },
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: RESPONSE_SCHEMA,
-        // Detection is deterministic-ish; keep it from wandering.
-        temperature: 0,
-      },
-    });
+      }),
+      config.geminiTimeoutMs,
+    );
   } catch (error) {
-    // Network / auth / 5xx / rate-limit / safety block all surface here.
+    // Network / auth / 5xx / rate-limit / safety block / timeout surface here.
     throw classifyVisionError(error);
   }
 
