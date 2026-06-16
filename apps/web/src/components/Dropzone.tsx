@@ -2,10 +2,11 @@
 
 import { useCallback } from "react";
 import { useDropzone, type FileRejection } from "react-dropzone";
+import { css, cx } from "@linaria/core";
 import { MAX_UPLOAD_BYTES } from "@ourfirm/shared";
-import { cx } from "../lib/cx";
-import { quickValidate } from "../lib/api";
-import * as s from "./Dropzone.css";
+
+import { quickValidate } from "@/lib/api";
+import { theme } from "@/styles/theme";
 
 interface DropzoneProps {
   onFile: (file: File) => void;
@@ -56,32 +57,97 @@ export function Dropzone({ onFile, onReject }: DropzoneProps) {
     <div
       {...getRootProps()}
       className={cx(
-        s.zone,
-        isDragActive && s.dragActive,
-        isDragReject && s.rejected,
+        zone,
+        isDragActive && dragActive,
+        isDragReject && rejected,
       )}
     >
       <input {...getInputProps()} />
-      <span className={s.seal} aria-hidden>
+      <span className={seal} aria-hidden>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 3v12" />
           <path d="m7 10 5 5 5-5" />
           <path d="M5 21h14" />
         </svg>
       </span>
-      <div className={s.title}>
+      <div className={title}>
         {isDragActive ? (
-          <span className={s.accentText}>Drop it here</span>
+          <span className={accentText}>Drop it here</span>
         ) : (
           <>
-            Drop a document here, or <span className={s.accentText}>browse</span>
+            Drop a document here, or <span className={accentText}>browse</span>
           </>
         )}
       </div>
-      <p className={s.hint}>
+      <p className={hint}>
         We&apos;ll extract the letterhead, signature, and footer as images.
       </p>
-      <span className={s.note}>PDF · PNG · JPG · DOCX up to {maxMb} MB</span>
+      <span className={note}>PDF · PNG · JPG · DOCX up to {maxMb} MB</span>
     </div>
   );
 }
+
+const zone = css`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: ${theme.space[3]};
+  text-align: center;
+  padding: ${theme.space[8]} ${theme.space[8]};
+  background-color: ${theme.color.surface};
+  border: 2px dashed ${theme.color.lineStrong};
+  border-radius: ${theme.radius.xl};
+  cursor: pointer;
+  transition-property: border-color, background-color, transform;
+  transition-duration: ${theme.duration.base};
+
+  &:hover {
+    border-color: ${theme.color.inkSubtle};
+    background-color: ${theme.color.paper};
+  }
+`;
+
+const dragActive = css`
+  border-color: ${theme.color.accent};
+  background-color: ${theme.color.accentSoft};
+  transform: scale(1.005);
+`;
+
+const rejected = css`
+  border-color: ${theme.color.danger};
+  background-color: ${theme.color.dangerSoft};
+`;
+
+const seal = css`
+  width: 48px;
+  height: 48px;
+  border-radius: ${theme.radius.full};
+  background-color: ${theme.color.accentSoft};
+  color: ${theme.color.accent};
+  display: grid;
+  place-items: center;
+`;
+
+const title = css`
+  font-family: ${theme.font.display};
+  font-size: ${theme.fontSize.xl};
+  color: ${theme.color.ink};
+`;
+
+const accentText = css`
+  color: ${theme.color.accent};
+`;
+
+const hint = css`
+  font-size: ${theme.fontSize.sm};
+  color: ${theme.color.inkMuted};
+`;
+
+const note = css`
+  font-family: ${theme.font.mono};
+  font-size: ${theme.fontSize.xs};
+  text-transform: uppercase;
+  letter-spacing: ${theme.letterSpacing.wide};
+  color: ${theme.color.inkSubtle};
+`;

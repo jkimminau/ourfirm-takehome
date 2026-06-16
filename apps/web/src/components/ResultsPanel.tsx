@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { css } from "@linaria/core";
 import { motion } from "framer-motion";
 import {
   isDetected,
@@ -8,17 +9,18 @@ import {
   type RegionImages,
   type RegionKind,
 } from "@ourfirm/shared";
-import { RegionCard } from "./RegionCard";
-import { FullDocumentCard } from "./FullDocumentCard";
-import { CropEditor } from "./CropEditor";
-import { Button } from "./ui/Button";
-import { DownloadIcon } from "./ui/icons";
+
+import { RegionCard } from "@/components/RegionCard";
+import { FullDocumentCard } from "@/components/FullDocumentCard";
+import { CropEditor } from "@/components/CropEditor";
+import { Button } from "@/components/ui/Button";
+import { DownloadIcon } from "@/components/ui/icons";
 import {
   buildFullDocumentImages,
   type FullDocumentImages,
-} from "../lib/fullDocument";
-import { downloadAllZip } from "../lib/zip";
-import * as s from "./ResultsPanel.css";
+} from "@/lib/fullDocument";
+import { downloadAllZip } from "@/lib/zip";
+import { theme } from "@/styles/theme";
 
 const reveal = {
   hidden: { opacity: 0, y: 12 },
@@ -81,11 +83,11 @@ export function ResultsPanel({ result }: ResultsPanelProps) {
       : undefined;
 
   return (
-    <div className={s.wrap}>
-      <div className={s.head}>
+    <div className={wrap}>
+      <div className={head}>
         <div>
-          <h2 className={s.heading}>Extracted regions</h2>
-          <p className={s.summary}>
+          <h2 className={heading}>Extracted regions</h2>
+          <p className={summary}>
             {found} of {total} regions detected · download each as PNG or JPEG
           </p>
         </div>
@@ -95,8 +97,14 @@ export function ResultsPanel({ result }: ResultsPanelProps) {
         </Button>
       </div>
 
+      {result.notice && (
+        <p className={notice} role="status">
+          {result.notice}
+        </p>
+      )}
+
       <motion.div
-        className={s.list}
+        className={list}
         variants={stagger}
         initial="hidden"
         animate="show"
@@ -136,3 +144,42 @@ export function ResultsPanel({ result }: ResultsPanelProps) {
     </div>
   );
 }
+
+const wrap = css`
+  display: flex;
+  flex-direction: column;
+  gap: ${theme.space[4]};
+`;
+
+const head = css`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: ${theme.space[3]};
+  flex-wrap: wrap;
+`;
+
+const heading = css`
+  font-family: ${theme.font.display};
+  font-size: ${theme.fontSize.xl};
+`;
+
+const summary = css`
+  font-size: ${theme.fontSize.sm};
+  color: ${theme.color.inkMuted};
+`;
+
+const list = css`
+  display: flex;
+  flex-direction: column;
+  gap: ${theme.space[4]};
+`;
+
+const notice = css`
+  font-size: ${theme.fontSize.sm};
+  line-height: ${theme.lineHeight.normal};
+  color: ${theme.color.warning};
+  background-color: ${theme.color.warningSoft};
+  border-radius: ${theme.radius.md};
+  padding: ${theme.space[3]} ${theme.space[4]};
+`;

@@ -1,19 +1,21 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { css, cx } from "@linaria/core";
 import { motion } from "framer-motion";
 import type { ExtractionResult } from "@ourfirm/shared";
-import { Container } from "../components/ui/Container";
-import { Card } from "../components/ui/Card";
-import { Badge } from "../components/ui/Badge";
-import { Button } from "../components/ui/Button";
-import { Dropzone } from "../components/Dropzone";
-import { Workspace } from "../components/Workspace";
-import { SamplePicker } from "../components/SamplePicker";
-import { ApiRequestError, extractDocument } from "../lib/api";
-import { docxToImageFile, isDocxFile } from "../lib/docx";
-import type { SampleDoc } from "../lib/samples";
-import * as s from "./page.css";
+
+import { Container } from "@/components/ui/Container";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Dropzone } from "@/components/Dropzone";
+import { Workspace } from "@/components/Workspace";
+import { SamplePicker } from "@/components/SamplePicker";
+import { ApiRequestError, extractDocument } from "@/lib/api";
+import { docxToImageFile, isDocxFile } from "@/lib/docx";
+import type { SampleDoc } from "@/lib/samples";
+import { theme } from "@/styles/theme";
 
 const REPO_URL = "https://github.com/jkimminau/ourfirm-takehome";
 
@@ -132,13 +134,13 @@ export default function Home() {
   const active = status !== "idle";
 
   return (
-    <div className={s.page}>
-      <Container as="header" className={s.header}>
-        <button className={s.brand} onClick={reset} type="button">
-          <span className={s.seal} aria-hidden />
+    <div className={page}>
+      <Container as="header" className={header}>
+        <button className={brand} onClick={reset} type="button">
+          <span className={seal} aria-hidden />
           Document Extractor
         </button>
-        <nav className={s.headerNav}>
+        <nav className={headerNav}>
           {active ? (
             <Button variant="secondary" size="sm" onClick={reset}>
               New document
@@ -175,7 +177,7 @@ export default function Home() {
         )}
       </Container>
 
-      <Container as="footer" className={s.footer}>
+      <Container as="footer" className={footer}>
         <span>Built for the OurFirm engineering assessment</span>
         <span>Heuristics-first · TypeScript</span>
       </Container>
@@ -200,38 +202,38 @@ function IdleView({ onFile, onReject, onSample, rejection }: IdleViewProps) {
   return (
     <>
       <motion.section
-        className={s.hero}
+        className={hero}
         variants={stagger}
         initial="hidden"
         animate="show"
       >
         <div>
-          <motion.div variants={reveal} className={s.eyebrow}>
+          <motion.div variants={reveal} className={eyebrow}>
             <Badge tone="outline">PDF → PNG / JPEG</Badge>
           </motion.div>
-          <motion.h1 variants={reveal} className={s.title}>
+          <motion.h1 variants={reveal} className={title}>
             Extract the signature, letterhead &amp; footer from any{" "}
-            <span className={s.titleAccent}>document</span>.
+            <span className={titleAccent}>document</span>.
           </motion.h1>
-          <motion.p variants={reveal} className={s.lede}>
+          <motion.p variants={reveal} className={lede}>
             Upload a PDF and pull each region out as a clean, downloadable image
             — no manual cropping. Built with transparent heuristics, not a black
             box.
           </motion.p>
         </div>
 
-        <motion.div variants={reveal} className={s.heroMedia}>
-          <div className={s.mockupFrame}>
+        <motion.div variants={reveal} className={heroMedia}>
+          <div className={mockupFrame}>
             <DocumentMockup />
           </div>
           <div>
             <Dropzone onFile={onFile} onReject={onReject} />
             {rejection && (
-              <p className={s.rejection} role="alert">
+              <p className={rejectionStyle} role="alert">
                 {rejection}{" "}
                 <button
                   type="button"
-                  className={s.rejectionAction}
+                  className={rejectionAction}
                   onClick={onSample}
                 >
                   Try the sample instead
@@ -243,19 +245,19 @@ function IdleView({ onFile, onReject, onSample, rejection }: IdleViewProps) {
       </motion.section>
 
       <motion.section
-        className={s.regions}
+        className={regions}
         variants={stagger}
         initial="hidden"
         animate="show"
       >
         {REGIONS.map((region) => (
           <motion.div key={region.name} variants={reveal}>
-            <Card interactive className={s.regionCard}>
-              <div className={s.regionHead}>
-                <h2 className={s.regionName}>{region.name}</h2>
+            <Card interactive className={regionCard}>
+              <div className={regionHead}>
+                <h2 className={regionName}>{region.name}</h2>
                 <Badge tone={region.tone}>{region.name}</Badge>
               </div>
-              <p className={s.regionDesc}>{region.desc}</p>
+              <p className={regionDesc}>{region.desc}</p>
             </Card>
           </motion.div>
         ))}
@@ -267,38 +269,302 @@ function IdleView({ onFile, onReject, onSample, rejection }: IdleViewProps) {
 /** Decorative stylized document illustrating the three extractable regions. */
 function DocumentMockup() {
   return (
-    <div className={s.sheet} aria-hidden>
-      <div className={`${s.zone} ${s.zoneLetterhead}`}>
-        <span className={s.sealMark} />
+    <div className={sheet} aria-hidden>
+      <div className={cx(zone, zoneLetterhead)}>
+        <span className={sealMark} />
         <div style={{ flex: 1, display: "grid", gap: 6 }}>
-          <span className={s.line} style={{ width: "70%" }} />
-          <span className={s.line} style={{ width: "45%" }} />
+          <span className={line} style={{ width: "70%" }} />
+          <span className={line} style={{ width: "45%" }} />
         </div>
-        <span className={s.tag}>Letterhead</span>
+        <span className={tag}>Letterhead</span>
       </div>
 
-      <div className={s.zoneBody}>
-        <span className={s.line} style={{ width: "100%" }} />
-        <span className={s.line} style={{ width: "92%" }} />
-        <span className={s.line} style={{ width: "97%" }} />
-        <span className={s.line} style={{ width: "60%" }} />
+      <div className={zoneBody}>
+        <span className={line} style={{ width: "100%" }} />
+        <span className={line} style={{ width: "92%" }} />
+        <span className={line} style={{ width: "97%" }} />
+        <span className={line} style={{ width: "60%" }} />
       </div>
 
-      <div className={`${s.zone} ${s.zoneSignature}`}>
+      <div className={cx(zone, zoneSignature)}>
         <svg viewBox="0 0 160 50" width="80%" height="40">
           <path
-            className={s.signaturePath}
+            className={signaturePath}
             d="M6 34 C 22 6, 34 6, 38 30 C 41 46, 52 12, 66 26 C 78 38, 86 8, 104 24 C 120 38, 132 18, 154 22"
           />
         </svg>
-        <span className={`${s.tag} ${s.tagAccent}`}>Signature</span>
+        <span className={cx(tag, tagAccent)}>Signature</span>
       </div>
 
-      <div className={`${s.zone} ${s.zoneFooter}`}>
-        <span className={s.line} style={{ width: "30%" }} />
-        <span className={s.line} style={{ width: "18%" }} />
-        <span className={s.tag}>Footer</span>
+      <div className={cx(zone, zoneFooter)}>
+        <span className={line} style={{ width: "30%" }} />
+        <span className={line} style={{ width: "18%" }} />
+        <span className={tag}>Footer</span>
       </div>
     </div>
   );
 }
+
+const page = css`
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+`;
+
+/* ---- Header ---------------------------------------------------------- */
+const header = css`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: ${theme.space[5]};
+`;
+
+const brand = css`
+  display: inline-flex;
+  align-items: center;
+  gap: ${theme.space[3]};
+  font-family: ${theme.font.display};
+  font-size: ${theme.fontSize.lg};
+  font-weight: ${theme.fontWeight.semibold};
+  /* usable as a reset-to-home button */
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+`;
+
+const seal = css`
+  width: 11px;
+  height: 11px;
+  border-radius: ${theme.radius.full};
+  background-color: ${theme.color.accent};
+  box-shadow: 0 0 0 4px ${theme.color.accentSoft};
+`;
+
+const headerNav = css`
+  display: flex;
+  align-items: center;
+  gap: ${theme.space[2]};
+`;
+
+/* ---- Hero ------------------------------------------------------------ */
+const hero = css`
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: ${theme.space[16]};
+  align-items: center;
+  padding-top: ${theme.space[16]};
+  padding-bottom: ${theme.space[20]};
+
+  @media screen and (max-width: 920px) {
+    grid-template-columns: 1fr;
+    gap: ${theme.space[12]};
+    padding-top: ${theme.space[10]};
+  }
+`;
+
+const eyebrow = css`
+  margin-bottom: ${theme.space[5]};
+`;
+
+const title = css`
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  line-height: ${theme.lineHeight.tight};
+  letter-spacing: ${theme.letterSpacing.tight};
+  margin: 0;
+`;
+
+const titleAccent = css`
+  font-style: italic;
+  color: ${theme.color.accent};
+`;
+
+const lede = css`
+  margin-top: ${theme.space[6]};
+  font-size: ${theme.fontSize.lg};
+  line-height: ${theme.lineHeight.relaxed};
+  color: ${theme.color.inkMuted};
+  max-width: 52ch;
+`;
+
+/* ---- Hero media column: document mockup stacked above the upload ----- */
+const heroMedia = css`
+  display: flex;
+  flex-direction: column;
+  gap: ${theme.space[8]};
+  align-items: stretch;
+`;
+
+/* ---- Document mockup (decorative) ------------------------------------ */
+const mockupFrame = css`
+  position: relative;
+  align-self: center;
+`;
+
+const sheet = css`
+  width: min(360px, 100%);
+  aspect-ratio: 1 / 1.32;
+  background-color: ${theme.color.surface};
+  border-radius: ${theme.radius.md};
+  border: 1px solid ${theme.color.line};
+  box-shadow: ${theme.shadow.lg};
+  padding: ${theme.space[6]};
+  display: flex;
+  flex-direction: column;
+  gap: ${theme.space[4]};
+  transform: rotate(-1.5deg);
+`;
+
+const zone = css`
+  position: relative;
+  border-radius: ${theme.radius.sm};
+  padding: ${theme.space[3]};
+`;
+
+const zoneLetterhead = css`
+  display: flex;
+  align-items: center;
+  gap: ${theme.space[3]};
+  border: 1px solid ${theme.color.line};
+`;
+
+const zoneBody = css`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: ${theme.space[2]};
+  padding-block: ${theme.space[2]};
+`;
+
+const zoneSignature = css`
+  border: 1.5px solid ${theme.color.accent};
+  background-color: ${theme.color.accentSoft};
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const zoneFooter = css`
+  border-top: 1px solid ${theme.color.line};
+  padding-top: ${theme.space[3]};
+  display: flex;
+  justify-content: space-between;
+`;
+
+const tag = css`
+  position: absolute;
+  top: ${theme.space[2]};
+  right: ${theme.space[2]};
+  font-family: ${theme.font.mono};
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: ${theme.letterSpacing.wide};
+  color: ${theme.color.inkSubtle};
+`;
+
+const tagAccent = css`
+  color: ${theme.color.accent};
+`;
+
+const line = css`
+  height: 7px;
+  border-radius: ${theme.radius.full};
+  background-color: ${theme.color.surfaceSunken};
+`;
+
+const sealMark = css`
+  width: 28px;
+  height: 28px;
+  border-radius: ${theme.radius.full};
+  background-color: ${theme.color.accent};
+  flex-shrink: 0;
+`;
+
+const signaturePath = css`
+  @keyframes signatureDraw {
+    0% {
+      stroke-dashoffset: 240;
+    }
+    100% {
+      stroke-dashoffset: 0;
+    }
+  }
+  fill: none;
+  stroke: ${theme.color.accent};
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 240;
+  animation: signatureDraw 2.4s ${theme.ease.emphasized} 0.6s both;
+`;
+
+/* ---- Dropzone (idle focal action) ------------------------------------ */
+const rejectionStyle = css`
+  margin-top: ${theme.space[4]};
+  text-align: center;
+  color: ${theme.color.danger};
+  font-size: ${theme.fontSize.sm};
+`;
+
+const rejectionAction = css`
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: ${theme.color.accent};
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+`;
+
+/* ---- Region cards ---------------------------------------------------- */
+const regions = css`
+  padding-bottom: ${theme.space[24]};
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: ${theme.space[5]};
+
+  @media screen and (max-width: 860px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const regionCard = css`
+  display: flex;
+  flex-direction: column;
+  gap: ${theme.space[4]};
+`;
+
+const regionHead = css`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const regionName = css`
+  font-family: ${theme.font.display};
+  font-size: ${theme.fontSize.xl};
+  margin: 0;
+`;
+
+const regionDesc = css`
+  color: ${theme.color.inkMuted};
+  font-size: ${theme.fontSize.sm};
+  line-height: ${theme.lineHeight.normal};
+  margin: 0;
+`;
+
+/* ---- Footer ---------------------------------------------------------- */
+const footer = css`
+  margin-top: auto;
+  border-top: 1px solid ${theme.color.line};
+  padding-block: ${theme.space[6]};
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: ${theme.space[3]};
+  color: ${theme.color.inkSubtle};
+  font-family: ${theme.font.mono};
+  font-size: ${theme.fontSize.xs};
+`;

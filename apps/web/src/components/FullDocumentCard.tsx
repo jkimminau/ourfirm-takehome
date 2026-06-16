@@ -1,12 +1,23 @@
 "use client";
 
-import { Badge } from "./ui/Badge";
-import { Spinner } from "./ui/Spinner";
-import { DownloadIcon } from "./ui/icons";
-import { cx } from "../lib/cx";
-import { baseName, downloadDataUrl } from "../lib/download";
-import type { FullDocumentImages } from "../lib/fullDocument";
-import * as s from "./RegionCard.css";
+import { cx } from "@linaria/core";
+
+import { Badge } from "@/components/ui/Badge";
+import { Spinner } from "@/components/ui/Spinner";
+import { DownloadIcon } from "@/components/ui/icons";
+import { baseName, downloadDataUrl } from "@/lib/download";
+import type { FullDocumentImages } from "@/lib/fullDocument";
+import {
+  card,
+  head,
+  name,
+  previewWell,
+  previewImg,
+  foot,
+  actions,
+  iconBtn,
+  iconBtnAlt,
+} from "@/components/RegionCard";
 
 interface FullDocumentCardProps {
   images: FullDocumentImages | null;
@@ -26,29 +37,29 @@ export function FullDocumentCard({
   };
 
   return (
-    <div className={s.card}>
-      <div className={s.head}>
-        <span className={s.name}>Full document</span>
+    <div className={card}>
+      <div className={head}>
+        <span className={name}>Full document</span>
         <Badge tone="neutral">
           {pageCount} {pageCount === 1 ? "page" : "pages"}
         </Badge>
       </div>
 
-      <div className={s.previewWell}>
+      <div className={previewWell}>
         {images ? (
           /* eslint-disable-next-line @next/next/no-img-element */
-          <img className={s.previewImg} src={images.png} alt="Full document" />
+          <img className={previewImg} src={images.png} alt="Full document" />
         ) : (
           <Spinner />
         )}
       </div>
 
-      <div className={s.foot}>
+      <div className={foot}>
         <span />
-        <div className={s.actions}>
+        <div className={actions}>
           <button
             type="button"
-            className={s.iconBtn}
+            className={iconBtn}
             disabled={!images}
             title="Download PNG"
             onClick={() => download("png")}
@@ -58,7 +69,7 @@ export function FullDocumentCard({
           </button>
           <button
             type="button"
-            className={cx(s.iconBtn, s.iconBtnAlt)}
+            className={cx(iconBtn, iconBtnAlt)}
             disabled={!images}
             title="Download JPEG"
             onClick={() => download("jpeg")}

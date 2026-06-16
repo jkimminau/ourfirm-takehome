@@ -1,7 +1,43 @@
-/* Bare reset only. All themed styling (color, typography, motion) lives in the
-   vanilla-extract design system: src/styles/theme.css.ts + global.css.ts. */
+/* Design tokens + base layer. Tokens are referenced from src/styles/theme.ts
+   (which Linaria inlines into component `css`). Light mode only. */
 :root {
   color-scheme: light;
+
+  /* surfaces */
+  --color-paper: #f6f5f0;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #efede4;
+  /* ink */
+  --color-ink: #1c1b17;
+  --color-ink-muted: #6b6a60;
+  --color-ink-subtle: #9c9a8c;
+  /* lines */
+  --color-line: #e6e3d9;
+  --color-line-strong: #d6d3c5;
+  /* accent — wax seal / ink stamp */
+  --color-accent: #c75b39;
+  --color-accent-hover: #b14e30;
+  --color-accent-soft: #f5e5dd;
+  --color-on-accent: #fcf8f4;
+  /* semantic */
+  --color-positive: #5c7a5a;
+  --color-positive-soft: #e7ede3;
+  --color-warning: #a8761e;
+  --color-warning-soft: #f3e9d6;
+  --color-danger: #a3342b;
+  --color-danger-soft: #f4e2df;
+  --color-focus: #c75b39;
+
+  /* type scale */
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.875rem;
+  --fs-base: 1rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.375rem;
+  --fs-2xl: 1.75rem;
+  --fs-3xl: 2.25rem;
+  --fs-4xl: 3rem;
+  --fs-5xl: 4rem;
 }
 
 * {
@@ -22,9 +58,25 @@ body {
 
 body {
   min-height: 100%;
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: var(--fs-base);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
 }
 
 a {
@@ -36,4 +88,24 @@ img,
 svg {
   display: block;
   max-width: 100%;
+}
+
+::selection {
+  background-color: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(199, 91, 57, 0.28);
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

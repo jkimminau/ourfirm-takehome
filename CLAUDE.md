@@ -24,12 +24,17 @@ Run everything: `npm run dev` from the root (concurrently starts web on :3000
 and server on :4000). Node 22 (`.nvmrc`); `nvm use` first.
 
 ## Stack rules
-- **Styling: vanilla-extract only** (`*.css.ts`), wired for Turbopack via
-  `unstable_turbopack: { mode: 'auto' }`. **Do not introduce Tailwind.**
+- **Styling: Linaria** (zero-runtime CSS-in-JS). Write `` css`...` `` from
+  `@linaria/core` **in the component's `.tsx`, below the component** — no separate
+  style files. Tokens come from `@/styles/theme` (`var(--…)` strings; values in
+  `app/globals.css`). The web app runs on **webpack** (`next dev/build --webpack`)
+  because Linaria doesn't support Turbopack. **No Tailwind, no vanilla-extract.**
+- **Imports:** external/package imports first, blank line, then local imports.
+  Local imports use absolute `@/…` paths (mapped to `apps/web/src`), not `../`.
 - **framer-motion** for animation — sparingly (clean hover/transition only).
-- Server processing libs: **pdf-to-img** (rasterize), **pdfjs-dist** (text-layer
-  coords), **sharp** (crop + PNG/JPEG), **file-type** (magic-byte validation).
-  These live in `apps/server` only and run on a real Node runtime.
+- Server processing libs: **pdfjs-dist** + **@napi-rs/canvas** (rasterize / text
+  layer), **sharp** (crop + PNG/JPEG), **file-type** (magic-byte validation),
+  optional **@google/genai** (Gemini vision). `apps/server` only, real Node runtime.
 - Light mode only for now.
 
 ## Architecture & approach

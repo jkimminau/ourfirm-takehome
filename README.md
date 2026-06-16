@@ -107,6 +107,13 @@ because of it). Each result shows whether a region was found by the **heuristics
 or by **AI**. The heuristics remain the default, so the app works with no key and
 is never LLM-only.
 
+> **Scanned PDFs & images are handled by this AI layer.** Because Gemini reads the
+> rendered page *pixels*, it doesn't need a text layer — so scanned/photographed
+> PDFs and image uploads (which have no selectable text) get proper region
+> detection from the AI path. This is why a dedicated OCR step is a deliberate
+> non-goal (see _Known limitations_): the vision layer already covers that case,
+> and without a key the heuristics still find the positional letterhead/footer.
+
 **Adjustable crop.** Every detected region can be re-cropped in the browser — drag
 the handles to include less or more of the page, and the preview, downloads, and
 ZIP all use the adjusted crop.
@@ -119,9 +126,10 @@ ZIP all use the adjusted crop.
 - **Next.js 16 (App Router)** for the client — first-class Vercel deploys, React
   framework familiarity. **Fastify 5** for the server — mature multipart uploads,
   schema validation, and a clean centralized error handler.
-- **vanilla-extract** for styling rather than Tailwind — zero-runtime, fully
-  typed CSS that reads like CSS (wired for Next 16's Turbopack via
-  `unstable_turbopack`).
+- **Linaria** for styling rather than Tailwind — zero-runtime CSS-in-JS, with
+  styles co-located in each component's `.tsx` and design tokens as CSS variables
+  (`src/styles/theme.ts` → `app/globals.css`). The web app builds with webpack
+  (`--webpack`), since Linaria predates Turbopack support.
 - **PDF rasterization: `pdfjs-dist` + `@napi-rs/canvas`.** I initially reached
   for `pdf-to-img`, but in this workspace it bundles pdfjs `5.6.x` while
   resolving the hoisted pdfjs `6.x` for its worker, throwing an
@@ -185,6 +193,7 @@ The live demo runs the client on Vercel and the backend on Heroku.
 | server | `CORS_ORIGINS` | Comma-separated allowed origins (defaults to `http://localhost:3000`). |
 | server | `GEMINI_API_KEY` | _Optional._ Enables the Gemini vision detection layer. Unset ⇒ heuristics only. |
 | server | `GEMINI_MODEL` | _Optional._ Detection model (defaults to `gemini-3.5-flash`). |
+| server | `GEMINI_TIMEOUT_MS` | _Optional._ Vision call timeout before falling back (default 12000). |
 | web | `NEXT_PUBLIC_API_URL` | Backend base URL (defaults to `http://localhost:4000`). |
 
 ## Testing

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Hanken_Grotesk, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import "../styles/global.css";
 
 // Display: a warm, characterful serif — evokes letterhead / correspondence.
 const display = Fraunces({

@@ -1,6 +1,7 @@
 import type { ElementType, ReactNode } from "react";
-import { cx } from "../../lib/cx";
-import * as styles from "./Container.css";
+import { css, cx } from "@linaria/core";
+
+import { theme } from "@/styles/theme";
 
 interface ContainerProps {
   as?: ElementType;
@@ -18,8 +19,19 @@ export function Container({
   children,
 }: ContainerProps) {
   return (
-    <Tag className={cx(styles.container, narrow && styles.narrow, className)}>
+    <Tag className={cx(container, narrow && narrowWidth, className)}>
       {children}
     </Tag>
   );
 }
+
+const container = css`
+  width: 100%;
+  max-width: ${theme.size.content};
+  margin-inline: auto;
+  padding-inline: ${theme.size.gutter};
+`;
+
+const narrowWidth = css`
+  max-width: ${theme.size.narrow};
+`;
