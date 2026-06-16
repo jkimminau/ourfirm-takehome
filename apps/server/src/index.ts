@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
@@ -51,4 +52,8 @@ async function start() {
   }
 }
 
-start();
+// Only listen when run directly (e.g. `node dist/index.js`), not when imported
+// by tests — buildServer() is exported for in-process testing via app.inject().
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  start();
+}
