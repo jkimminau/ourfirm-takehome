@@ -117,7 +117,7 @@ export interface ExtractionResult {
 // ---------------------------------------------------------------------------
 
 export type ExtractionErrorCode =
-  /** Not a PDF, or magic bytes don't match the claimed type (disguised file). */
+  /** Not an accepted type, or magic bytes don't match (disguised file). */
   | "UNSUPPORTED_FILE_TYPE"
   /** Exceeds MAX_UPLOAD_BYTES. */
   | "FILE_TOO_LARGE"
@@ -129,6 +129,12 @@ export type ExtractionErrorCode =
   | "PASSWORD_PROTECTED"
   /** Valid container but no renderable pages. */
   | "NO_PAGES"
+  /** An image was uploaded but it doesn't look like a document (e.g. a photo). */
+  | "NOT_A_DOCUMENT"
+  /** The AI vision service is unavailable (network / auth / safety block). */
+  | "AI_UNAVAILABLE"
+  /** The AI vision request hit a rate / quota / token limit. */
+  | "AI_RATE_LIMITED"
   /** Upload did not complete (network drop / aborted). */
   | "UPLOAD_INTERRUPTED"
   /** Unexpected server-side failure. */
@@ -161,9 +167,21 @@ export function isApiError(value: unknown): value is ApiError {
 /** Max accepted upload size. Enforced on both client and server. */
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB
 
-/** The only container we accept at MVP (docx is a deferred bonus). */
-export const ACCEPTED_MIME_TYPES: readonly string[] = ["application/pdf"];
-export const ACCEPTED_EXTENSIONS: readonly string[] = [".pdf"];
+/**
+ * Types the server accepts. `.docx` is rendered to a PNG in the browser before
+ * upload, so it arrives here as an image and doesn't need a server entry.
+ */
+export const ACCEPTED_MIME_TYPES: readonly string[] = [
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+];
+export const ACCEPTED_EXTENSIONS: readonly string[] = [
+  ".pdf",
+  ".png",
+  ".jpg",
+  ".jpeg",
+];
 
 // ---------------------------------------------------------------------------
 // API surface

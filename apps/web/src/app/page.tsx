@@ -11,6 +11,7 @@ import { Dropzone } from "../components/Dropzone";
 import { Workspace } from "../components/Workspace";
 import { SamplePicker } from "../components/SamplePicker";
 import { ApiRequestError, extractDocument } from "../lib/api";
+import { docxToImageFile, isDocxFile } from "../lib/docx";
 import type { SampleDoc } from "../lib/samples";
 import * as s from "./page.css";
 
@@ -71,7 +72,25 @@ export default function Home() {
     setStatus("extracting");
 
     try {
-      const res = await extractDocument(f, ac.signal);
+      // .docx has no fixed page geometry and isn't accepted by the engine — render
+      // it to a page image in the browser, then run it through the image pipeline.
+      let upload = f;
+      if (isDocxFile(f)) {
+        try {
+          upload = await docxToImageFile(f);
+          if (ac.signal.aborted) return;
+          setFile(upload);
+        } catch {
+          setError({
+            message:
+              "We couldn't read that Word document. Try exporting it to PDF and uploading that instead.",
+          });
+          setStatus("error");
+          return;
+        }
+      }
+
+      const res = await extractDocument(upload, ac.signal);
       if (ac.signal.aborted) return;
       setResult(res);
       setStatus("done");

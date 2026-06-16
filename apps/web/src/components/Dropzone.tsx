@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useId } from "react";
 import { useDropzone, type FileRejection } from "react-dropzone";
 import { MAX_UPLOAD_BYTES } from "@ourfirm/shared";
 import { cx } from "../lib/cx";
@@ -15,7 +15,7 @@ interface DropzoneProps {
 const maxMb = Math.round(MAX_UPLOAD_BYTES / 1048576);
 
 export function Dropzone({ onFile, onReject }: DropzoneProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputId = useId();
 
   // Shared validate-then-accept for both drag-drop and the file picker.
   const accept = useCallback(
@@ -34,9 +34,9 @@ export function Dropzone({ onFile, onReject }: DropzoneProps) {
         if (code === "file-too-large") {
           onReject(`That file is larger than the ${maxMb} MB limit.`);
         } else if (code === "file-invalid-type") {
-          onReject("That file isn't a PDF. Please choose a PDF document.");
+          onReject("Unsupported file. Upload a PDF, image (PNG/JPG), or Word (.docx).");
         } else {
-          onReject("That file can't be uploaded. Please choose a single PDF.");
+          onReject("That file can't be uploaded. Please choose a single document.");
         }
         return;
       }
@@ -46,12 +46,19 @@ export function Dropzone({ onFile, onReject }: DropzoneProps) {
     [accept, onReject],
   );
 
-  // We handle the click + file input ourselves (noClick) — react-dropzone's
-  // built-in dialog handling could get stuck and not reopen after the native
-  // dialog was cancelled. A fresh input.click() always reopens.
+  // react-dropzone handles drag-and-drop only (noClick); the click-to-browse is
+  // a native <label htmlFor> → <input>. No programmatic .click(), so nothing
+  // bubbles back into a handler, and the picker reliably reopens after a cancel.
   const { getRootProps, isDragActive, isDragReject } = useDropzone({
     onDrop,
-    accept: { "application/pdf": [".pdf"] },
+    accept: {
+      "application/pdf": [".pdf"],
+      "image/png": [".png"],
+      "image/jpeg": [".jpg", ".jpeg"],
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
+        ".docx",
+      ],
+    },
     maxFiles: 1,
     maxSize: MAX_UPLOAD_BYTES,
     multiple: false,
@@ -61,15 +68,15 @@ export function Dropzone({ onFile, onReject }: DropzoneProps) {
 
   function handleInputChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    // Reset so picking the same file again (or reopening) still fires onChange.
+    // Reset so picking the same file again still fires onChange.
     event.target.value = "";
     if (file) accept(file);
   }
 
   return (
-    <div
+    <label
       {...getRootProps()}
-      onClick={() => inputRef.current?.click()}
+      htmlFor={inputId}
       className={cx(
         s.zone,
         isDragActive && s.dragActive,
@@ -77,9 +84,9 @@ export function Dropzone({ onFile, onReject }: DropzoneProps) {
       )}
     >
       <input
-        ref={inputRef}
+        id={inputId}
         type="file"
-        accept="application/pdf,.pdf"
+        accept=".pdf,.png,.jpg,.jpeg,.docx,application/pdf,image/png,image/jpeg,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         hidden
         onChange={handleInputChange}
       />
@@ -95,14 +102,14 @@ export function Dropzone({ onFile, onReject }: DropzoneProps) {
           <span className={s.accentText}>Drop it here</span>
         ) : (
           <>
-            Drop a PDF here, or <span className={s.accentText}>browse</span>
+            Drop a document here, or <span className={s.accentText}>browse</span>
           </>
         )}
       </div>
       <p className={s.hint}>
         We&apos;ll extract the letterhead, signature, and footer as images.
       </p>
-      <span className={s.note}>PDF · up to {maxMb} MB</span>
-    </div>
+      <span className={s.note}>PDF · PNG · JPG · DOCX up to {maxMb} MB</span>
+    </label>
   );
 }

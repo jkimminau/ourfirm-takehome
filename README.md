@@ -39,7 +39,9 @@ PDF.
 
 ## What it does
 
-1. You upload a PDF (drag-and-drop or file picker), or pick a bundled sample.
+1. You upload a **PDF, image (PNG/JPG), or Word `.docx`** (drag-and-drop or file
+   picker), or pick a bundled sample. (`.docx` is rendered to a page image in the
+   browser; images are treated as a single page.)
 2. The **server** rasterizes the pages, locates the three regions with
    transparent heuristics, and crops each one.
 3. The **client** shows a preview of the document alongside each extracted region
@@ -218,10 +220,19 @@ upload → extract → results.
   fallback** (e.g. `tesseract.js`) is deliberately deferred: it would mainly add
   value for the heuristics-only path and for repopulating selectable text, at the
   cost of a large WASM dependency and seconds-per-page latency.
-- **Other deliberately deferred trade-offs** (not oversights): `.docx` / image-
-  file inputs, batch (multi-file) upload, and a raster→SVG signature. The
-  architecture (typed engine behind a thin route, shared contract) is set up to
-  add these cleanly.
+- **Image & `.docx` inputs.** Images are processed as a single page; `.docx` is
+  rendered to an image in the browser (`docx-preview` → canvas) — best-effort
+  fidelity, since `.docx` has no fixed page geometry. Both lack a text layer, so
+  the heuristics degrade like a scanned PDF; the AI layer is recommended for
+  these. Non-document images are rejected (`NOT_A_DOCUMENT`) — via Gemini when
+  enabled, else a light pixel heuristic.
+- **AI failures surface clearly.** A Gemini rate/quota/token limit →
+  `AI_RATE_LIMITED`; auth/network/safety/other → `AI_UNAVAILABLE`. These are
+  shown to the user on image inputs (where AI is the operative detector); PDFs
+  fall back to heuristics so they never hard-fail.
+- **Other deliberately deferred trade-offs** (not oversights): batch (multi-file)
+  upload, OCR, and a raster→SVG signature. The architecture (typed engine behind
+  a thin route, shared contract) is set up to add these cleanly.
 
 ## Project scripts
 
