@@ -8,13 +8,15 @@
 FROM node:22-slim AS build
 WORKDIR /app
 
-# Install deps first (cached unless a manifest changes). The lockfile covers all
-# workspaces, so every workspace package.json must be present for `npm ci`.
-COPY package.json package-lock.json ./
+# Install deps first (cached unless a manifest changes). Every workspace
+# package.json must be present for the install to resolve the tree.
+# NB: `npm install`, not `npm ci` — Heroku's container build omits
+# package-lock.json from the build context, so we can't rely on it here.
+COPY package.json ./
 COPY packages/shared/package.json packages/shared/
 COPY apps/server/package.json apps/server/
 COPY apps/web/package.json apps/web/
-RUN npm ci
+RUN npm install --no-audit --no-fund
 
 # Build the server: tsup bundles @ourfirm/shared in and leaves native deps
 # external (resolved from node_modules at runtime).

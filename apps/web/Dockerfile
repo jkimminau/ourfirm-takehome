@@ -9,11 +9,13 @@
 FROM node:22-slim AS build
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+# `npm install`, not `npm ci` — Heroku's container build omits package-lock.json
+# from the build context, so the build can't depend on the lockfile.
+COPY package.json ./
 COPY packages/shared/package.json packages/shared/
 COPY apps/server/package.json apps/server/
 COPY apps/web/package.json apps/web/
-RUN npm ci
+RUN npm install --no-audit --no-fund
 
 COPY packages/shared packages/shared
 COPY apps/web apps/web
