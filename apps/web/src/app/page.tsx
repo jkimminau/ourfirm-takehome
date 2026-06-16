@@ -9,11 +9,12 @@ import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Dropzone } from "../components/Dropzone";
 import { Workspace } from "../components/Workspace";
+import { SamplePicker } from "../components/SamplePicker";
 import { ApiRequestError, extractDocument } from "../lib/api";
+import type { SampleDoc } from "../lib/samples";
 import * as s from "./page.css";
 
 const REPO_URL = "https://github.com/jkimminau/ourfirm-takehome";
-const SAMPLE_URL = "/samples/sample-letter.pdf";
 
 const reveal = {
   hidden: { opacity: 0, y: 16 },
@@ -56,6 +57,7 @@ export default function Home() {
   const [error, setError] = useState<{ message: string; detail?: string } | null>(null);
   const [format, setFormat] = useState<ImageFormat>("png");
   const [rejection, setRejection] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const runExtraction = useCallback(async (f: File) => {
@@ -94,18 +96,20 @@ export default function Home() {
     setRejection(null);
   }, []);
 
-  const loadSample = useCallback(async () => {
-    try {
-      const res = await fetch(SAMPLE_URL);
-      if (!res.ok) throw new Error("missing");
-      const blob = await res.blob();
-      runExtraction(
-        new File([blob], "sample-letter.pdf", { type: "application/pdf" }),
-      );
-    } catch {
-      setRejection("The sample document isn't available yet.");
-    }
-  }, [runExtraction]);
+  const handleSelectSample = useCallback(
+    async (doc: SampleDoc) => {
+      setPickerOpen(false);
+      try {
+        const res = await fetch(doc.file);
+        if (!res.ok) throw new Error("missing");
+        const blob = await res.blob();
+        runExtraction(new File([blob], doc.fileName, { type: "application/pdf" }));
+      } catch {
+        setRejection("That sample couldn't be loaded. Please try another.");
+      }
+    },
+    [runExtraction],
+  );
 
   const active = status !== "idle";
 
@@ -122,7 +126,7 @@ export default function Home() {
               New document
             </Button>
           ) : (
-            <Button variant="ghost" size="sm" onClick={loadSample}>
+            <Button variant="ghost" size="sm" onClick={() => setPickerOpen(true)}>
               Try a sample
             </Button>
           )}
@@ -149,7 +153,7 @@ export default function Home() {
           <IdleView
             onFile={runExtraction}
             onReject={setRejection}
-            onSample={loadSample}
+            onSample={() => setPickerOpen(true)}
             rejection={rejection}
           />
         )}
@@ -159,6 +163,12 @@ export default function Home() {
         <span>Built for the OurFirm engineering assessment</span>
         <span>Heuristics-first · TypeScript</span>
       </Container>
+
+      <SamplePicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={handleSelectSample}
+      />
     </div>
   );
 }

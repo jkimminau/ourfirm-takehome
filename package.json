@@ -14,9 +14,11 @@
     "dev:web": "npm run dev --workspace @ourfirm/web",
     "dev:server": "npm run dev --workspace @ourfirm/server",
     "build": "npm run build --workspace @ourfirm/server && npm run build --workspace @ourfirm/web",
-    "lint": "npm run lint --workspace @ourfirm/web"
+    "lint": "npm run lint --workspace @ourfirm/web",
+    "samples": "node scripts/generate-samples.mjs"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "pdfkit": "^0.19.1"
   }
 }
