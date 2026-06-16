@@ -210,10 +210,18 @@ upload → extract → results.
 - **Gemini model name** defaults to `gemini-3.5-flash`; if Google's naming
   shifts, override with `GEMINI_MODEL`. The vision path degrades gracefully to
   heuristics on any error.
-- **Deliberately deferred** (documented trade-offs, not oversights): `.docx`
-  input, OCR for scanned PDFs, and a raster→SVG signature. The architecture
-  (typed engine behind a thin route, shared contract) is set up to add these
-  cleanly.
+- **Scanned PDFs (no text layer).** A scanned PDF is just an image of a page —
+  there's no selectable text, so the text-driven heuristics (closing-word
+  anchors, "ink with no text under it") degrade and the "Text content" panel is
+  empty. The **AI vision layer already covers detection + cropping** here, since
+  it reads the rendered pixels rather than a text layer. A dedicated **OCR
+  fallback** (e.g. `tesseract.js`) is deliberately deferred: it would mainly add
+  value for the heuristics-only path and for repopulating selectable text, at the
+  cost of a large WASM dependency and seconds-per-page latency.
+- **Other deliberately deferred trade-offs** (not oversights): `.docx` / image-
+  file inputs, batch (multi-file) upload, and a raster→SVG signature. The
+  architecture (typed engine behind a thin route, shared contract) is set up to
+  add these cleanly.
 
 ## Project scripts
 
