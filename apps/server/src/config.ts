@@ -1,3 +1,6 @@
+// Load apps/server/.env for local dev (GEMINI_API_KEY etc.). No-op in
+// production, where the platform (Heroku) injects real env vars.
+import "dotenv/config";
 import { MAX_UPLOAD_BYTES } from "@ourfirm/shared";
 
 /** Runtime configuration, read once from the environment. */
