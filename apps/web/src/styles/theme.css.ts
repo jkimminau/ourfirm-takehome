@@ -27,9 +27,11 @@ export const vars = createGlobalTheme(":root", {
     accentSoft: "#F5E5DD", // tinted accent surface
     onAccent: "#FCF8F4", // text/icons on accent
     // semantic (kept muted to stay in palette)
-    positive: "#5C7A5A", // region detected
+    positive: "#5C7A5A", // high confidence / detected
     positiveSoft: "#E7EDE3",
-    danger: "#A3342B", // hard errors
+    warning: "#A8761E", // moderate confidence — warm ochre
+    warningSoft: "#F3E9D6",
+    danger: "#A3342B", // low confidence / hard errors
     dangerSoft: "#F4E2DF",
     // focus ring color
     focus: "#C75B39",

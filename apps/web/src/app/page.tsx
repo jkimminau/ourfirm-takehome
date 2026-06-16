@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import type { ExtractionResult, ImageFormat } from "@ourfirm/shared";
+import type { ExtractionResult } from "@ourfirm/shared";
 import { Container } from "../components/ui/Container";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
@@ -55,7 +55,6 @@ export default function Home() {
   const [status, setStatus] = useState<Status>("idle");
   const [result, setResult] = useState<ExtractionResult | null>(null);
   const [error, setError] = useState<{ message: string; detail?: string } | null>(null);
-  const [format, setFormat] = useState<ImageFormat>("png");
   const [rejection, setRejection] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -145,8 +144,6 @@ export default function Home() {
             status={status}
             result={result}
             error={error}
-            format={format}
-            onFormatChange={setFormat}
             onReset={reset}
           />
         ) : (

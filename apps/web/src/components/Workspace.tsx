@@ -1,6 +1,6 @@
 "use client";
 
-import type { ExtractionResult, ImageFormat } from "@ourfirm/shared";
+import type { ExtractionResult } from "@ourfirm/shared";
 import { DocumentPreview } from "./DocumentPreview";
 import { ResultsPanel } from "./ResultsPanel";
 import { ErrorState } from "./ErrorState";
@@ -14,8 +14,6 @@ interface WorkspaceProps {
   status: WorkspaceStatus;
   result: ExtractionResult | null;
   error: { message: string; detail?: string } | null;
-  format: ImageFormat;
-  onFormatChange: (format: ImageFormat) => void;
   onReset: () => void;
 }
 
@@ -24,8 +22,6 @@ export function Workspace({
   status,
   result,
   error,
-  format,
-  onFormatChange,
   onReset,
 }: WorkspaceProps) {
   // On error there's nothing to preview (the file was rejected or unreadable),
@@ -61,13 +57,7 @@ export function Workspace({
           </div>
         )}
 
-        {status === "done" && result && (
-          <ResultsPanel
-            result={result}
-            format={format}
-            onFormatChange={onFormatChange}
-          />
-        )}
+        {status === "done" && result && <ResultsPanel result={result} />}
       </div>
     </div>
   );

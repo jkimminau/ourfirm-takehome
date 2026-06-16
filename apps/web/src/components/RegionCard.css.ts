@@ -1,4 +1,4 @@
-import { style } from "@vanilla-extract/css";
+import { style, styleVariants } from "@vanilla-extract/css";
 import { vars } from "../styles/theme.css";
 
 export const card = style({
@@ -66,6 +66,66 @@ export const missing = style({
   lineHeight: vars.lineHeight.normal,
 });
 
+/* ---- collapsible text content ---------------------------------------- */
+export const details = style({
+  marginInline: vars.space[4],
+  marginTop: vars.space[4],
+  borderTop: `1px solid ${vars.color.line}`,
+});
+
+export const summary = style({
+  listStyle: "none",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  gap: vars.space[2],
+  paddingBlock: vars.space[3],
+  fontFamily: vars.font.mono,
+  fontSize: vars.fontSize.xs,
+  textTransform: "uppercase",
+  letterSpacing: vars.letterSpacing.wide,
+  color: vars.color.inkMuted,
+  selectors: {
+    "&::-webkit-details-marker": { display: "none" },
+    "&:hover": { color: vars.color.ink },
+  },
+});
+
+export const chevron = style({
+  transition: `transform ${vars.duration.fast}`,
+  selectors: { "details[open] &": { transform: "rotate(90deg)" } },
+});
+
+export const textBox = style({
+  marginBottom: vars.space[4],
+  maxHeight: "180px",
+  overflowY: "auto",
+  padding: vars.space[3],
+  backgroundColor: vars.color.surfaceSunken,
+  border: `1px solid ${vars.color.line}`,
+  borderRadius: vars.radius.md,
+  fontFamily: vars.font.mono,
+  fontSize: vars.fontSize.xs,
+  lineHeight: vars.lineHeight.relaxed,
+  color: vars.color.ink,
+  whiteSpace: "pre-wrap",
+  userSelect: "text",
+});
+
+export const emptyText = style({
+  marginBottom: vars.space[4],
+  fontSize: vars.fontSize.sm,
+  color: vars.color.inkSubtle,
+  fontStyle: "italic",
+});
+
+export const copyRow = style({
+  display: "flex",
+  justifyContent: "flex-end",
+  marginTop: vars.space[2],
+});
+
+/* ---- footer: confidence + downloads ---------------------------------- */
 export const foot = style({
   display: "flex",
   alignItems: "center",
@@ -74,18 +134,69 @@ export const foot = style({
   padding: vars.space[4],
 });
 
-export const meta = style({
+export const confidence = style({
   display: "flex",
   alignItems: "center",
   gap: vars.space[2],
   fontFamily: vars.font.mono,
   fontSize: vars.fontSize.xs,
-  color: vars.color.inkSubtle,
 });
 
-export const confidenceDot = style({
+export const dot = style({
   width: "7px",
   height: "7px",
   borderRadius: vars.radius.full,
-  backgroundColor: vars.color.positive,
+  flexShrink: 0,
+});
+
+export const tierDot = styleVariants({
+  high: { backgroundColor: vars.color.positive },
+  moderate: { backgroundColor: vars.color.warning },
+  low: { backgroundColor: vars.color.danger },
+});
+
+export const tierText = styleVariants({
+  high: { color: vars.color.inkMuted },
+  moderate: { color: vars.color.warning },
+  low: { color: vars.color.danger },
+});
+
+export const actions = style({
+  display: "flex",
+  gap: vars.space[2],
+  flexShrink: 0,
+});
+
+export const iconBtn = style({
+  display: "inline-flex",
+  alignItems: "center",
+  gap: vars.space[1],
+  fontFamily: vars.font.mono,
+  fontSize: vars.fontSize.xs,
+  letterSpacing: vars.letterSpacing.wide,
+  color: vars.color.onAccent,
+  backgroundColor: vars.color.accent,
+  border: "1px solid transparent",
+  borderRadius: vars.radius.md,
+  padding: `${vars.space[2]} ${vars.space[3]}`,
+  cursor: "pointer",
+  transitionProperty: "background-color, transform",
+  transitionDuration: vars.duration.fast,
+  selectors: {
+    "&:hover": { backgroundColor: vars.color.accentHover },
+    "&:active": { transform: "translateY(1px)" },
+  },
+});
+
+// Second format gets a quieter, outline treatment to reduce visual weight.
+export const iconBtnAlt = style({
+  color: vars.color.ink,
+  backgroundColor: vars.color.surface,
+  borderColor: vars.color.lineStrong,
+  selectors: {
+    "&:hover": {
+      backgroundColor: vars.color.surfaceSunken,
+      borderColor: vars.color.ink,
+    },
+  },
 });

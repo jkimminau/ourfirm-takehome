@@ -63,6 +63,12 @@ export interface DetectedRegion {
   images: RegionImages;
   /** 0–1 heuristic confidence; informational, drives UI hinting only. */
   confidence: number;
+  /**
+   * Text-layer content found within this region (empty string if none — e.g.
+   * a hand-drawn signature has ink but no selectable text). Newline-separated
+   * by visual line.
+   */
+  text: string;
 }
 
 /** A region the heuristics could not confidently locate. */

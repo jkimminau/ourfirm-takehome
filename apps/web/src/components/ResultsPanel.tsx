@@ -1,12 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import {
-  isDetected,
-  type ExtractionResult,
-  type ImageFormat,
-} from "@ourfirm/shared";
-import { FormatToggle } from "./FormatToggle";
+import { isDetected, type ExtractionResult } from "@ourfirm/shared";
 import { RegionCard } from "./RegionCard";
 import * as s from "./ResultsPanel.css";
 
@@ -26,15 +21,9 @@ const stagger = {
 
 interface ResultsPanelProps {
   result: ExtractionResult;
-  format: ImageFormat;
-  onFormatChange: (format: ImageFormat) => void;
 }
 
-export function ResultsPanel({
-  result,
-  format,
-  onFormatChange,
-}: ResultsPanelProps) {
+export function ResultsPanel({ result }: ResultsPanelProps) {
   const found = result.regions.filter(isDetected).length;
   const total = result.regions.length;
 
@@ -44,10 +33,9 @@ export function ResultsPanel({
         <div>
           <h2 className={s.heading}>Extracted regions</h2>
           <p className={s.summary}>
-            {found} of {total} regions detected
+            {found} of {total} regions detected · download each as PNG or JPEG
           </p>
         </div>
-        <FormatToggle value={format} onChange={onFormatChange} />
       </div>
 
       <motion.div
@@ -58,11 +46,7 @@ export function ResultsPanel({
       >
         {result.regions.map((region) => (
           <motion.div key={region.kind} variants={reveal}>
-            <RegionCard
-              region={region}
-              sourceFileName={result.fileName}
-              format={format}
-            />
+            <RegionCard region={region} sourceFileName={result.fileName} />
           </motion.div>
         ))}
       </motion.div>

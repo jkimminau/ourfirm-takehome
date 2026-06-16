@@ -12,6 +12,7 @@ import {
   detectFooter,
   detectLetterhead,
   detectSignature,
+  extractTextInBox,
   isDetection,
   type DetectResult,
 } from "./detect.js";
@@ -87,6 +88,9 @@ async function buildRegion(result: DetectResult): Promise<Region> {
   }
 
   const images = await cropRegion(result.page, result.box);
+  // Text-layer content inside the box. A hand-drawn signature legitimately
+  // yields "" (ink with no selectable text under it).
+  const text = extractTextInBox(result.page.words, result.box);
   return {
     kind: result.kind,
     status: "detected",
@@ -94,6 +98,7 @@ async function buildRegion(result: DetectResult): Promise<Region> {
     box: result.box,
     images,
     confidence: result.confidence,
+    text,
   };
 }
 
