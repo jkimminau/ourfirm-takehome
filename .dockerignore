@@ -1,0 +1,11 @@
+# Keep the build context small and avoid copying host artifacts into images.
+**/node_modules
+**/.next
+**/dist
+.git
+.notes
+.vercel
+.playwright-mcp
+**/*.log
+**/.DS_Store
+npm-debug.log*

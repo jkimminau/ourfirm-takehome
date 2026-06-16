@@ -1,0 +1,41 @@
+# Document-processing backend (Fastify + sharp + pdfjs + @napi-rs/canvas).
+# Build context is the monorepo root: `docker build -f apps/server/Dockerfile .`
+#
+# Debian slim (glibc) rather than Alpine — the native deps (sharp/libvips,
+# @napi-rs/canvas) ship prebuilt glibc binaries that "just work" here.
+
+# ---- build ----------------------------------------------------------------
+FROM node:22-slim AS build
+WORKDIR /app
+
+# Install deps first (cached unless a manifest changes). The lockfile covers all
+# workspaces, so every workspace package.json must be present for `npm ci`.
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/server/package.json apps/server/
+COPY apps/web/package.json apps/web/
+RUN npm ci
+
+# Build the server: tsup bundles @ourfirm/shared in and leaves native deps
+# external (resolved from node_modules at runtime).
+COPY packages/shared packages/shared
+COPY apps/server apps/server
+RUN npm run build --workspace @ourfirm/server \
+  && npm prune --omit=dev
+
+# ---- runtime --------------------------------------------------------------
+FROM node:22-slim AS runtime
+WORKDIR /app/apps/server
+ENV NODE_ENV=production \
+    PORT=4000 \
+    HOST=0.0.0.0
+
+# Production node_modules (incl. the native deps + pdfjs cmaps/fonts) and the
+# bundled server.
+COPY --from=build /app/node_modules /app/node_modules
+COPY --from=build /app/apps/server/dist ./dist
+COPY --from=build /app/apps/server/package.json ./
+
+# Heroku assigns $PORT dynamically; the server reads it (config.ts). 4000 locally.
+EXPOSE 4000
+CMD ["node", "dist/index.js"]
