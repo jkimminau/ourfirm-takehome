@@ -9,5 +9,5 @@ export default defineConfig({
   // Bundle the workspace contract package (TS source) into the output...
   noExternal: ["@ourfirm/shared"],
   // ...but keep native/heavy deps external so their binaries load at runtime.
-  external: ["sharp", "pdf-to-img", "@napi-rs/canvas", "pdfjs-dist"],
+  external: ["sharp", "@napi-rs/canvas", "pdfjs-dist"],
 });
