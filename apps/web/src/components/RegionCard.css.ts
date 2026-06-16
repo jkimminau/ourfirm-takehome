@@ -24,6 +24,12 @@ export const name = style({
   fontWeight: vars.fontWeight.semibold,
 });
 
+export const headBadges = style({
+  display: "flex",
+  alignItems: "center",
+  gap: vars.space[2],
+});
+
 // Checkerboard so PNG transparency reads clearly behind the crop.
 export const previewWell = style({
   position: "relative",
@@ -131,7 +137,30 @@ export const foot = style({
   alignItems: "center",
   justifyContent: "space-between",
   gap: vars.space[3],
+  rowGap: vars.space[2],
+  flexWrap: "wrap",
   padding: vars.space[4],
+});
+
+// "Adjust crop" — a quieter, borderless action distinct from the downloads.
+export const ghostAction = style({
+  display: "inline-flex",
+  alignItems: "center",
+  gap: vars.space[1],
+  fontFamily: vars.font.mono,
+  fontSize: vars.fontSize.xs,
+  letterSpacing: vars.letterSpacing.wide,
+  color: vars.color.inkMuted,
+  background: "transparent",
+  border: "none",
+  borderRadius: vars.radius.md,
+  padding: `${vars.space[2]} ${vars.space[2]}`,
+  cursor: "pointer",
+  transitionProperty: "color, background-color",
+  transitionDuration: vars.duration.fast,
+  selectors: {
+    "&:hover": { color: vars.color.ink, backgroundColor: vars.color.surfaceSunken },
+  },
 });
 
 export const confidence = style({

@@ -1,10 +1,10 @@
 "use client";
 
-import type { ImageFormat, Region } from "@ourfirm/shared";
+import type { ImageFormat, Region, RegionImages } from "@ourfirm/shared";
 import { isDetected } from "@ourfirm/shared";
 import { Badge } from "./ui/Badge";
 import { CopyButton } from "./CopyButton";
-import { DownloadIcon, ChevronIcon } from "./ui/icons";
+import { DownloadIcon, ChevronIcon, CropIcon } from "./ui/icons";
 import { cx } from "../lib/cx";
 import { downloadDataUrl, regionFileName } from "../lib/download";
 import { confidenceTier, TIER_LABEL } from "../lib/confidence";
@@ -19,9 +19,17 @@ const LABELS: Record<Region["kind"], string> = {
 interface RegionCardProps {
   region: Region;
   sourceFileName: string;
+  /** Adjusted crop, if the user re-cropped this region. */
+  override?: RegionImages;
+  onAdjust?: () => void;
 }
 
-export function RegionCard({ region, sourceFileName }: RegionCardProps) {
+export function RegionCard({
+  region,
+  sourceFileName,
+  override,
+  onAdjust,
+}: RegionCardProps) {
   if (!isDetected(region)) {
     return (
       <div className={s.card}>
@@ -40,17 +48,22 @@ export function RegionCard({ region, sourceFileName }: RegionCardProps) {
   const tier = confidenceTier(region.confidence);
   const pct = Math.round(region.confidence * 100);
   const text = region.text.trim();
+  const images = override ?? region.images;
 
   return (
     <div className={s.card}>
       <div className={s.head}>
         <span className={s.name}>{LABELS[region.kind]}</span>
-        <Badge tone="positive">Detected</Badge>
+        <span className={s.headBadges}>
+          {override && <Badge tone="accent">Cropped</Badge>}
+          {region.detectedBy === "ai" && <Badge tone="accent">AI</Badge>}
+          <Badge tone="positive">Detected</Badge>
+        </span>
       </div>
 
       <div className={s.previewWell}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className={s.previewImg} src={region.images.png} alt={`Extracted ${region.kind}`} />
+        <img className={s.previewImg} src={images.png} alt={`Extracted ${region.kind}`} />
       </div>
 
       <details className={s.details}>
@@ -80,27 +93,30 @@ export function RegionCard({ region, sourceFileName }: RegionCardProps) {
           </span>
         </span>
         <div className={s.actions}>
-          <DownloadFormatButton region={region} sourceFileName={sourceFileName} format="png" />
-          <DownloadFormatButton
-            region={region}
-            sourceFileName={sourceFileName}
-            format="jpeg"
-            alt
-          />
+          {onAdjust && (
+            <button type="button" className={s.ghostAction} onClick={onAdjust}>
+              <CropIcon width={14} height={14} />
+              Adjust
+            </button>
+          )}
+          <DownloadButton images={images} sourceFileName={sourceFileName} kind={region.kind} format="png" />
+          <DownloadButton images={images} sourceFileName={sourceFileName} kind={region.kind} format="jpeg" alt />
         </div>
       </div>
     </div>
   );
 }
 
-function DownloadFormatButton({
-  region,
+function DownloadButton({
+  images,
   sourceFileName,
+  kind,
   format,
   alt,
 }: {
-  region: Extract<Region, { status: "detected" }>;
+  images: RegionImages;
   sourceFileName: string;
+  kind: Region["kind"];
   format: ImageFormat;
   alt?: boolean;
 }) {
@@ -110,10 +126,7 @@ function DownloadFormatButton({
       className={cx(s.iconBtn, alt && s.iconBtnAlt)}
       title={`Download ${format.toUpperCase()}`}
       onClick={() =>
-        downloadDataUrl(
-          region.images[format],
-          regionFileName(sourceFileName, region.kind, format),
-        )
+        downloadDataUrl(images[format], regionFileName(sourceFileName, kind, format))
       }
     >
       <DownloadIcon width={14} height={14} />

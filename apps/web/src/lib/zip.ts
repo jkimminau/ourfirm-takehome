@@ -1,16 +1,23 @@
 import JSZip from "jszip";
-import { isDetected, type ExtractionResult } from "@ourfirm/shared";
+import {
+  isDetected,
+  type ExtractionResult,
+  type RegionImages,
+  type RegionKind,
+} from "@ourfirm/shared";
 import { baseName, dataUrlToBytes, downloadBlob } from "./download";
 import type { FullDocumentImages } from "./fullDocument";
 
 /**
  * Bundle the full document plus every detected region (as PNGs) into a single
- * .zip and download it. PNG is used for the archive since it's the lossless
- * source; per-card buttons still offer JPEG individually.
+ * .zip and download it. Uses the user's adjusted crop for a region when present.
+ * PNG is used for the archive since it's the lossless source; per-card buttons
+ * still offer JPEG individually.
  */
 export async function downloadAllZip(
   result: ExtractionResult,
   fullDocument: FullDocumentImages | null,
+  overrides: Partial<Record<RegionKind, RegionImages>> = {},
 ): Promise<void> {
   const base = baseName(result.fileName);
   const zip = new JSZip();
@@ -20,7 +27,8 @@ export async function downloadAllZip(
   }
   for (const region of result.regions) {
     if (isDetected(region)) {
-      zip.file(`${base}-${region.kind}.png`, dataUrlToBytes(region.images.png));
+      const png = overrides[region.kind]?.png ?? region.images.png;
+      zip.file(`${base}-${region.kind}.png`, dataUrlToBytes(png));
     }
   }
 

@@ -2,9 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { isDetected, type ExtractionResult } from "@ourfirm/shared";
+import {
+  isDetected,
+  type ExtractionResult,
+  type RegionImages,
+  type RegionKind,
+} from "@ourfirm/shared";
 import { RegionCard } from "./RegionCard";
 import { FullDocumentCard } from "./FullDocumentCard";
+import { CropEditor } from "./CropEditor";
 import { Button } from "./ui/Button";
 import { DownloadIcon } from "./ui/icons";
 import {
@@ -28,6 +34,8 @@ const stagger = {
   show: { transition: { staggerChildren: 0.09 } },
 };
 
+type Overrides = Partial<Record<RegionKind, RegionImages>>;
+
 interface ResultsPanelProps {
   result: ExtractionResult;
 }
@@ -38,11 +46,15 @@ export function ResultsPanel({ result }: ResultsPanelProps) {
 
   const [fullDoc, setFullDoc] = useState<FullDocumentImages | null>(null);
   const [zipping, setZipping] = useState(false);
+  const [overrides, setOverrides] = useState<Overrides>({});
+  const [editing, setEditing] = useState<RegionKind | null>(null);
 
-  // Stitch the page previews into a single full-document image once results land.
+  // Reset per-document state and stitch the full-document image when results land.
   useEffect(() => {
     let active = true;
     setFullDoc(null);
+    setOverrides({});
+    setEditing(null);
     buildFullDocumentImages(result.previews)
       .then((images) => active && setFullDoc(images))
       .catch(() => {});
@@ -54,11 +66,19 @@ export function ResultsPanel({ result }: ResultsPanelProps) {
   async function handleZip() {
     setZipping(true);
     try {
-      await downloadAllZip(result, fullDoc);
+      await downloadAllZip(result, fullDoc, overrides);
     } finally {
       setZipping(false);
     }
   }
+
+  const editingRegion = result.regions.find(
+    (r) => r.kind === editing && isDetected(r),
+  );
+  const editingPage =
+    editingRegion && isDetected(editingRegion)
+      ? result.previews[editingRegion.page.index]
+      : undefined;
 
   return (
     <div className={s.wrap}>
@@ -90,10 +110,29 @@ export function ResultsPanel({ result }: ResultsPanelProps) {
         </motion.div>
         {result.regions.map((region) => (
           <motion.div key={region.kind} variants={reveal}>
-            <RegionCard region={region} sourceFileName={result.fileName} />
+            <RegionCard
+              region={region}
+              sourceFileName={result.fileName}
+              override={isDetected(region) ? overrides[region.kind] : undefined}
+              onAdjust={
+                isDetected(region) ? () => setEditing(region.kind) : undefined
+              }
+            />
           </motion.div>
         ))}
       </motion.div>
+
+      {editingRegion && isDetected(editingRegion) && editingPage && (
+        <CropEditor
+          region={editingRegion}
+          page={editingPage}
+          onClose={() => setEditing(null)}
+          onApply={(images) => {
+            setOverrides((prev) => ({ ...prev, [editingRegion.kind]: images }));
+            setEditing(null);
+          }}
+        />
+      )}
     </div>
   );
 }
