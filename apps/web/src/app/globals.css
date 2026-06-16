@@ -1,8 +1,6 @@
-/* Minimal reset + light-mode base. The full design system (tokens, scale,
-   motion) is defined in the design pass via vanilla-extract. */
+/* Bare reset only. All themed styling (color, typography, motion) lives in the
+   vanilla-extract design system: src/styles/theme.css.ts + global.css.ts. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
   color-scheme: light;
 }
 
@@ -24,14 +22,18 @@ body {
 
 body {
   min-height: 100%;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
 }
