@@ -47,6 +47,10 @@ export function Dropzone({ onFile, onReject }: DropzoneProps) {
       maxFiles: 1,
       maxSize: MAX_UPLOAD_BYTES,
       multiple: false,
+      // Use the classic hidden <input> rather than the File System Access API
+      // picker, which can get stuck and not reopen after the native dialog is
+      // cancelled (Chrome/macOS).
+      useFsAccessApi: false,
     });
 
   return (
