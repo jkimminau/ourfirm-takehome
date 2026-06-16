@@ -12,8 +12,12 @@ import type { RasterPage } from "./rasterize.js";
 const MAX_CROP_WIDTH = 1600;
 /** JPEG quality for the lossy variant. */
 const JPEG_QUALITY = 85;
-/** Page previews are display-only, so downscale hard to keep payloads small. */
-const PREVIEW_WIDTH = 800;
+/**
+ * Page previews are downscaled to keep payloads small, but the client now crops
+ * region selections out of these previews, so they need enough detail to look
+ * crisp — 1200px is a good balance of fidelity vs. payload size.
+ */
+const PREVIEW_WIDTH = 1200;
 const PREVIEW_QUALITY = 72;
 /** White, since documents are on white paper and we drop alpha for JPEG. */
 const WHITE = { r: 255, g: 255, b: 255 } as const;

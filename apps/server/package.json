@@ -12,6 +12,7 @@
   "dependencies": {
     "@fastify/cors": "^11.0.1",
     "@fastify/multipart": "^9.0.3",
+    "@google/genai": "^2.8.0",
     "@napi-rs/canvas": "^1.0.0",
     "@ourfirm/shared": "*",
     "fastify": "^5.2.1",

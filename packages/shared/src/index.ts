@@ -61,8 +61,10 @@ export interface DetectedRegion {
   page: PageRef;
   box: BoundingBox;
   images: RegionImages;
-  /** 0–1 heuristic confidence; informational, drives UI hinting only. */
+  /** 0–1 confidence; informational, drives UI hinting only. */
   confidence: number;
+  /** How the region was located: in-repo heuristics, or the AI vision layer. */
+  detectedBy: "heuristic" | "ai";
   /**
    * Text-layer content found within this region (empty string if none — e.g.
    * a hand-drawn signature has ink but no selectable text). Newline-separated
