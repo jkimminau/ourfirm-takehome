@@ -16,7 +16,7 @@ COPY package.json ./
 COPY packages/shared/package.json packages/shared/
 COPY apps/server/package.json apps/server/
 COPY apps/web/package.json apps/web/
-RUN npm install --no-audit --no-fund
+RUN npm install --legacy-peer-deps --no-audit --no-fund
 
 # Build the server: tsup bundles @ourfirm/shared in and leaves native deps
 # external (resolved from node_modules at runtime).
