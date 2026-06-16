@@ -15,7 +15,7 @@ import {
   isDetection,
   type DetectResult,
 } from "./detect.js";
-import { cropRegion, toPageRef } from "./crop.js";
+import { cropRegion, encodePagePreview, toPageRef } from "./crop.js";
 
 export { ExtractionError, isExtractionError } from "./errors.js";
 export { validateDocument } from "./validate.js";
@@ -57,14 +57,16 @@ export async function extractDocument(
       footer,
     };
 
-    // Encode crops for detections; keep contract ordering via REGION_KINDS.
-    const regions: Region[] = await Promise.all(
-      REGION_KINDS.map((kind) => buildRegion(byKind[kind])),
-    );
+    // Encode crops for detections + a downscaled preview for every page.
+    const [regions, previews] = await Promise.all([
+      Promise.all(REGION_KINDS.map((kind) => buildRegion(byKind[kind]))),
+      Promise.all(pages.map((page) => encodePagePreview(page))),
+    ]);
 
     return {
       fileName,
       pageCount: pages.length,
+      previews,
       regions,
     };
   } catch (error) {

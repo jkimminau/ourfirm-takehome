@@ -79,10 +79,27 @@ export function isDetected(region: Region): region is DetectedRegion {
   return region.status === "detected";
 }
 
+/**
+ * A downscaled raster of one document page, for the on-page preview. Produced
+ * server-side from the same rasterization used for extraction, so the preview
+ * always matches what was analysed and never depends on the browser's PDF
+ * plugin.
+ */
+export interface PagePreview {
+  index: number;
+  /** Preview image dimensions in pixels (downscaled from the render). */
+  width: number;
+  height: number;
+  /** JPEG data URL of the page. */
+  image: string;
+}
+
 /** Successful response body of `POST /api/extract`. */
 export interface ExtractionResult {
   fileName: string;
   pageCount: number;
+  /** One preview per page, in page order. */
+  previews: PagePreview[];
   /** Always one entry per RegionKind, in REGION_KINDS order. */
   regions: Region[];
 }

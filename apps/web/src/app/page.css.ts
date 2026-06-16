@@ -22,6 +22,12 @@ export const brand = style({
   fontFamily: vars.font.display,
   fontSize: vars.fontSize.lg,
   fontWeight: vars.fontWeight.semibold,
+  // usable as a reset-to-home button
+  background: "transparent",
+  border: "none",
+  padding: 0,
+  cursor: "pointer",
+  color: "inherit",
 });
 
 export const seal = style({
@@ -180,6 +186,29 @@ export const signaturePath = style({
   strokeLinecap: "round",
   strokeDasharray: 240,
   animation: `${drawSignature} 2.4s ${vars.ease.emphasized} 0.6s both`,
+});
+
+/* ---- Dropzone (idle focal action) ------------------------------------ */
+export const dropzoneWrap = style({
+  marginBottom: vars.space[16],
+});
+
+export const rejection = style({
+  marginTop: vars.space[4],
+  textAlign: "center",
+  color: vars.color.danger,
+  fontSize: vars.fontSize.sm,
+});
+
+export const rejectionAction = style({
+  background: "transparent",
+  border: "none",
+  padding: 0,
+  cursor: "pointer",
+  color: vars.color.accent,
+  fontSize: "inherit",
+  textDecoration: "underline",
+  textUnderlineOffset: "2px",
 });
 
 /* ---- Region cards ---------------------------------------------------- */

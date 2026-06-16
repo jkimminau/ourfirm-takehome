@@ -49,7 +49,6 @@ globalStyle("*", {
     "(prefers-reduced-motion: reduce)": {
       transitionDuration: "0.01ms !important",
       animationDuration: "0.01ms !important",
-      scrollBehavior: "auto !important",
     },
   },
 });

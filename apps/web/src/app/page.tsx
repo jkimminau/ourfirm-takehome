@@ -1,11 +1,19 @@
 "use client";
 
+import { useCallback, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import type { ExtractionResult, ImageFormat } from "@ourfirm/shared";
 import { Container } from "../components/ui/Container";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
+import { Dropzone } from "../components/Dropzone";
+import { Workspace } from "../components/Workspace";
+import { ApiRequestError, extractDocument } from "../lib/api";
 import * as s from "./page.css";
+
+const REPO_URL = "https://github.com/jkimminau/ourfirm-takehome";
+const SAMPLE_URL = "/samples/sample-letter.pdf";
 
 const reveal = {
   hidden: { opacity: 0, y: 16 },
@@ -39,76 +47,112 @@ const REGIONS = [
   },
 ];
 
+type Status = "idle" | "extracting" | "done" | "error";
+
 export default function Home() {
+  const [file, setFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<Status>("idle");
+  const [result, setResult] = useState<ExtractionResult | null>(null);
+  const [error, setError] = useState<{ message: string; detail?: string } | null>(null);
+  const [format, setFormat] = useState<ImageFormat>("png");
+  const [rejection, setRejection] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const runExtraction = useCallback(async (f: File) => {
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
+
+    setFile(f);
+    setRejection(null);
+    setResult(null);
+    setError(null);
+    setStatus("extracting");
+
+    try {
+      const res = await extractDocument(f, ac.signal);
+      if (ac.signal.aborted) return;
+      setResult(res);
+      setStatus("done");
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      const apiError = err as ApiRequestError;
+      setError({
+        message: apiError.message || "Something went wrong. Please try again.",
+        detail: apiError.detail,
+      });
+      setStatus("error");
+    }
+  }, []);
+
+  const reset = useCallback(() => {
+    abortRef.current?.abort();
+    setFile(null);
+    setStatus("idle");
+    setResult(null);
+    setError(null);
+    setRejection(null);
+  }, []);
+
+  const loadSample = useCallback(async () => {
+    try {
+      const res = await fetch(SAMPLE_URL);
+      if (!res.ok) throw new Error("missing");
+      const blob = await res.blob();
+      runExtraction(
+        new File([blob], "sample-letter.pdf", { type: "application/pdf" }),
+      );
+    } catch {
+      setRejection("The sample document isn't available yet.");
+    }
+  }, [runExtraction]);
+
+  const active = status !== "idle";
+
   return (
     <div className={s.page}>
       <Container as="header" className={s.header}>
-        <span className={s.brand}>
+        <button className={s.brand} onClick={reset} type="button">
           <span className={s.seal} aria-hidden />
           Region Extractor
-        </span>
+        </button>
         <nav className={s.headerNav}>
-          <Button variant="ghost" size="sm">
-            Sample
-          </Button>
-          <Button variant="secondary" size="sm">
-            View source
-          </Button>
+          {active ? (
+            <Button variant="secondary" size="sm" onClick={reset}>
+              New document
+            </Button>
+          ) : (
+            <Button variant="ghost" size="sm" onClick={loadSample}>
+              Try a sample
+            </Button>
+          )}
+          <a href={REPO_URL} target="_blank" rel="noreferrer">
+            <Button variant="secondary" size="sm">
+              View source
+            </Button>
+          </a>
         </nav>
       </Container>
 
       <Container>
-        <motion.section
-          className={s.hero}
-          variants={stagger}
-          initial="hidden"
-          animate="show"
-        >
-          <div>
-            <motion.div variants={reveal} className={s.eyebrow}>
-              <Badge tone="outline">PDF → PNG / JPEG</Badge>
-            </motion.div>
-            <motion.h1 variants={reveal} className={s.title}>
-              Extract the signature, letterhead &amp; footer from any{" "}
-              <span className={s.titleAccent}>document</span>.
-            </motion.h1>
-            <motion.p variants={reveal} className={s.lede}>
-              Upload a PDF and pull each region out as a clean, downloadable
-              image — no manual cropping. Built with transparent heuristics, not
-              a black box.
-            </motion.p>
-            <motion.div variants={reveal} className={s.actions}>
-              <Button size="lg">Upload a PDF</Button>
-              <Button variant="secondary" size="lg">
-                Try a sample
-              </Button>
-            </motion.div>
-          </div>
-
-          <motion.div variants={reveal} className={s.mockupFrame}>
-            <DocumentMockup />
-          </motion.div>
-        </motion.section>
-
-        <motion.section
-          className={s.regions}
-          variants={stagger}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: "-80px" }}
-        >
-          {REGIONS.map((region) => (
-            <motion.div key={region.name} variants={reveal}>
-              <Card interactive className={s.regionCard}>
-                <div className={s.regionHead}>
-                  <h2 className={s.regionName}>{region.name}</h2>
-                  <Badge tone={region.tone}>{region.name}</Badge>
-                </div>
-                <p className={s.regionDesc}>{region.desc}</p>
-              </Card>
-            </motion.div>
-          ))}
-        </motion.section>
+        {active && file ? (
+          <Workspace
+            file={file}
+            status={status}
+            result={result}
+            error={error}
+            format={format}
+            onFormatChange={setFormat}
+            onReset={reset}
+          />
+        ) : (
+          <IdleView
+            onFile={runExtraction}
+            onReject={setRejection}
+            onSample={loadSample}
+            rejection={rejection}
+          />
+        )}
       </Container>
 
       <Container as="footer" className={s.footer}>
@@ -116,6 +160,81 @@ export default function Home() {
         <span>Heuristics-first · TypeScript</span>
       </Container>
     </div>
+  );
+}
+
+interface IdleViewProps {
+  onFile: (file: File) => void;
+  onReject: (message: string) => void;
+  onSample: () => void;
+  rejection: string | null;
+}
+
+function IdleView({ onFile, onReject, onSample, rejection }: IdleViewProps) {
+  return (
+    <>
+      <motion.section
+        className={s.hero}
+        variants={stagger}
+        initial="hidden"
+        animate="show"
+      >
+        <div>
+          <motion.div variants={reveal} className={s.eyebrow}>
+            <Badge tone="outline">PDF → PNG / JPEG</Badge>
+          </motion.div>
+          <motion.h1 variants={reveal} className={s.title}>
+            Extract the signature, letterhead &amp; footer from any{" "}
+            <span className={s.titleAccent}>document</span>.
+          </motion.h1>
+          <motion.p variants={reveal} className={s.lede}>
+            Upload a PDF and pull each region out as a clean, downloadable image
+            — no manual cropping. Built with transparent heuristics, not a black
+            box.
+          </motion.p>
+        </div>
+
+        <motion.div variants={reveal} className={s.mockupFrame}>
+          <DocumentMockup />
+        </motion.div>
+      </motion.section>
+
+      <motion.div
+        variants={reveal}
+        initial="hidden"
+        animate="show"
+        className={s.dropzoneWrap}
+      >
+        <Dropzone onFile={onFile} onReject={onReject} />
+        {rejection && (
+          <p className={s.rejection} role="alert">
+            {rejection}{" "}
+            <button type="button" className={s.rejectionAction} onClick={onSample}>
+              Try the sample instead
+            </button>
+          </p>
+        )}
+      </motion.div>
+
+      <motion.section
+        className={s.regions}
+        variants={stagger}
+        initial="hidden"
+        animate="show"
+      >
+        {REGIONS.map((region) => (
+          <motion.div key={region.name} variants={reveal}>
+            <Card interactive className={s.regionCard}>
+              <div className={s.regionHead}>
+                <h2 className={s.regionName}>{region.name}</h2>
+                <Badge tone={region.tone}>{region.name}</Badge>
+              </div>
+              <p className={s.regionDesc}>{region.desc}</p>
+            </Card>
+          </motion.div>
+        ))}
+      </motion.section>
+    </>
   );
 }
 

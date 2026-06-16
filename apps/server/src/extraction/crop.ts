@@ -2,6 +2,7 @@ import sharp from "sharp";
 import type {
   BoundingBox,
   PageRef,
+  PagePreview,
   RegionImages,
 } from "@ourfirm/shared";
 
@@ -11,6 +12,9 @@ import type { RasterPage } from "./rasterize.js";
 const MAX_CROP_WIDTH = 1600;
 /** JPEG quality for the lossy variant. */
 const JPEG_QUALITY = 85;
+/** Page previews are display-only, so downscale hard to keep payloads small. */
+const PREVIEW_WIDTH = 800;
+const PREVIEW_QUALITY = 72;
 /** White, since documents are on white paper and we drop alpha for JPEG. */
 const WHITE = { r: 255, g: 255, b: 255 } as const;
 
@@ -55,6 +59,27 @@ export async function cropRegion(
   return {
     png: toDataUrl("image/png", png),
     jpeg: toDataUrl("image/jpeg", jpeg),
+  };
+}
+
+/**
+ * Encode a downscaled JPEG preview of a full page for on-screen display.
+ * Flattened onto white; dimensions reflect the downscaled image.
+ */
+export async function encodePagePreview(page: RasterPage): Promise<PagePreview> {
+  const pipeline = sharp(page.png)
+    .flatten({ background: WHITE })
+    .resize({ width: PREVIEW_WIDTH, withoutEnlargement: true });
+
+  const { data, info } = await pipeline
+    .jpeg({ quality: PREVIEW_QUALITY })
+    .toBuffer({ resolveWithObject: true });
+
+  return {
+    index: page.index,
+    width: info.width,
+    height: info.height,
+    image: toDataUrl("image/jpeg", data),
   };
 }
 
