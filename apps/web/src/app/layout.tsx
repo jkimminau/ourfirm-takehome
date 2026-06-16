@@ -25,7 +25,7 @@ const mono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Document Region Extractor",
+  title: "Document Extractor",
   description:
     "Upload a PDF and extract its signature, letterhead, and footer as downloadable PNG or JPEG images.",
 };

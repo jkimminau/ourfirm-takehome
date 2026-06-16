@@ -117,7 +117,7 @@ export default function Home() {
       <Container as="header" className={s.header}>
         <button className={s.brand} onClick={reset} type="button">
           <span className={s.seal} aria-hidden />
-          Region Extractor
+          Document Extractor
         </button>
         <nav className={s.headerNav}>
           {active ? (
@@ -201,27 +201,27 @@ function IdleView({ onFile, onReject, onSample, rejection }: IdleViewProps) {
           </motion.p>
         </div>
 
-        <motion.div variants={reveal} className={s.mockupFrame}>
-          <DocumentMockup />
+        <motion.div variants={reveal} className={s.heroMedia}>
+          <div className={s.mockupFrame}>
+            <DocumentMockup />
+          </div>
+          <div>
+            <Dropzone onFile={onFile} onReject={onReject} />
+            {rejection && (
+              <p className={s.rejection} role="alert">
+                {rejection}{" "}
+                <button
+                  type="button"
+                  className={s.rejectionAction}
+                  onClick={onSample}
+                >
+                  Try the sample instead
+                </button>
+              </p>
+            )}
+          </div>
         </motion.div>
       </motion.section>
-
-      <motion.div
-        variants={reveal}
-        initial="hidden"
-        animate="show"
-        className={s.dropzoneWrap}
-      >
-        <Dropzone onFile={onFile} onReject={onReject} />
-        {rejection && (
-          <p className={s.rejection} role="alert">
-            {rejection}{" "}
-            <button type="button" className={s.rejectionAction} onClick={onSample}>
-              Try the sample instead
-            </button>
-          </p>
-        )}
-      </motion.div>
 
       <motion.section
         className={s.regions}

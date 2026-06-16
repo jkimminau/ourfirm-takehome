@@ -90,10 +90,18 @@ export const actions = style({
   flexWrap: "wrap",
 });
 
+/* ---- Hero media column: document mockup stacked above the upload ----- */
+export const heroMedia = style({
+  display: "flex",
+  flexDirection: "column",
+  gap: vars.space[8],
+  alignItems: "stretch",
+});
+
 /* ---- Document mockup (decorative) ------------------------------------ */
 export const mockupFrame = style({
   position: "relative",
-  justifySelf: "center",
+  alignSelf: "center",
 });
 
 export const sheet = style({
@@ -189,10 +197,6 @@ export const signaturePath = style({
 });
 
 /* ---- Dropzone (idle focal action) ------------------------------------ */
-export const dropzoneWrap = style({
-  marginBottom: vars.space[16],
-});
-
 export const rejection = style({
   marginTop: vars.space[4],
   textAlign: "center",
