@@ -110,6 +110,11 @@ export interface ExtractionResult {
   previews: PagePreview[];
   /** Always one entry per RegionKind, in REGION_KINDS order. */
   regions: Region[];
+  /**
+   * Non-blocking, human-readable note about the run — e.g. the AI layer was
+   * rate-limited and heuristics were used instead. Absent on a clean run.
+   */
+  notice?: string;
 }
 
 // ---------------------------------------------------------------------------

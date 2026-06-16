@@ -226,10 +226,13 @@ upload → extract → results.
   the heuristics degrade like a scanned PDF; the AI layer is recommended for
   these. Non-document images are rejected (`NOT_A_DOCUMENT`) — via Gemini when
   enabled, else a light pixel heuristic.
-- **AI failures surface clearly.** A Gemini rate/quota/token limit →
-  `AI_RATE_LIMITED`; auth/network/safety/other → `AI_UNAVAILABLE`. These are
-  shown to the user on image inputs (where AI is the operative detector); PDFs
-  fall back to heuristics so they never hard-fail.
+- **AI is best-effort and degrades gracefully.** If a Gemini call fails for any
+  reason (rate/quota/token limit, auth, network, safety block), extraction falls
+  back to the in-repo heuristics and the result carries a non-blocking `notice`
+  ("Regions were located with the built-in heuristics because the AI service was
+  rate-limited."). The `detectedBy` badge stays accurate. Non-document images are
+  rejected by a local pixel check **before** any AI call, so they never spend a
+  request or surface an AI error.
 - **Other deliberately deferred trade-offs** (not oversights): batch (multi-file)
   upload, OCR, and a raster→SVG signature. The architecture (typed engine behind
   a thin route, shared contract) is set up to add these cleanly.

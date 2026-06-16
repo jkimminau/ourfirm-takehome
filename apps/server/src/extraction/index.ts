@@ -108,15 +108,17 @@ export async function extractDocument(
     }
 
     const visionBoxes: Partial<Record<RegionKind, BoundingBox>> = {};
+    let aiFailure: VisionError["kind"] | null = null;
     if (isVisionEnabled()) {
-      const [firstVision, lastVision] = await Promise.all([
-        runVision(firstPage, ["letterhead"], isImage),
-        runVision(lastPage, ["signature", "footer"], isImage),
+      const [first, last] = await Promise.all([
+        runVision(firstPage, ["letterhead"]),
+        runVision(lastPage, ["signature", "footer"]),
       ]);
+      aiFailure = first.failureKind ?? last.failureKind;
 
       // Secondary not-a-document check: if the model explicitly judges the
       // (document-like-by-pixels) image a non-document, trust it.
-      if (isImage && firstVision && firstVision.isDocument === false) {
+      if (isImage && first.result && first.result.isDocument === false) {
         throw new ExtractionError(
           "NOT_A_DOCUMENT",
           DEFAULT_MESSAGES.NOT_A_DOCUMENT,
@@ -125,8 +127,8 @@ export async function extractDocument(
 
       Object.assign(
         visionBoxes,
-        firstVision?.boxes ?? {},
-        lastVision?.boxes ?? {},
+        first.result?.boxes ?? {},
+        last.result?.boxes ?? {},
       );
     }
 
@@ -145,6 +147,7 @@ export async function extractDocument(
       pageCount: pages.length,
       previews,
       regions,
+      ...(aiFailure ? { notice: aiNotice(aiFailure) } : {}),
     };
   } catch (error) {
     // Detection/crop failures are unexpected (validation + rasterization
@@ -157,45 +160,39 @@ export async function extractDocument(
   }
 }
 
+interface VisionOutcome {
+  result: VisionPageResult | null;
+  /** Why vision didn't run (null on success). */
+  failureKind: VisionError["kind"] | null;
+}
+
 /**
- * Run the vision layer for one page under the per-input-type error policy.
- *
- * On success: the VisionPageResult (boxes + isDocument).
- * On a classified VisionError:
- *   - image input → re-throw as the matching AI ExtractionError
- *     (rate_limited → AI_RATE_LIMITED, unavailable → AI_UNAVAILABLE) so the
- *     user sees exactly why; the orchestrator's catch lets ExtractionErrors
- *     through unchanged.
- *   - PDF input → swallow and return null, so every kind on this page falls
- *     back to the heuristic (a PDF must never hard-fail on the AI layer).
- * Any non-VisionError is unexpected here (vision classifies everything), so it
- * is treated as the conservative AI_UNAVAILABLE for images / fallback for PDFs.
+ * Run the vision layer for one page. AI is a best-effort enhancement: any
+ * failure falls back to the in-repo heuristics (regions then report
+ * `detectedBy: "heuristic"`) and is reported via the result's `notice` rather
+ * than blocking extraction.
  */
 async function runVision(
   page: RasterPage,
   kinds: RegionKind[],
-  isImage: boolean,
-): Promise<VisionPageResult | null> {
+): Promise<VisionOutcome> {
   try {
-    return await detectRegionsWithVision(page, kinds);
+    return { result: await detectRegionsWithVision(page, kinds), failureKind: null };
   } catch (error) {
-    if (!isImage) return null; // PDF: silent fallback to heuristics.
-    throw toAiError(error);
+    return {
+      result: null,
+      failureKind: isVisionError(error) ? error.kind : "unavailable",
+    };
   }
 }
 
-/** Map a vision-layer failure onto the surfaced AI ExtractionError code. */
-function toAiError(error: unknown): ExtractionError {
-  const kind: VisionError["kind"] | undefined = isVisionError(error)
-    ? error.kind
-    : undefined;
-  if (kind === "rate_limited") {
-    return new ExtractionError(
-      "AI_RATE_LIMITED",
-      DEFAULT_MESSAGES.AI_RATE_LIMITED,
-    );
-  }
-  return new ExtractionError("AI_UNAVAILABLE", DEFAULT_MESSAGES.AI_UNAVAILABLE);
+/** Human-readable, non-blocking note shown when the AI layer fell back. */
+function aiNotice(kind: VisionError["kind"]): string {
+  const why =
+    kind === "rate_limited"
+      ? "the AI service was rate-limited"
+      : "the AI service was unavailable";
+  return `Regions were located with the built-in heuristics because ${why}.`;
 }
 
 /**
