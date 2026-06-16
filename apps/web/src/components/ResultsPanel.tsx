@@ -101,13 +101,6 @@ export function ResultsPanel({ result }: ResultsPanelProps) {
         initial="hidden"
         animate="show"
       >
-        <motion.div variants={reveal}>
-          <FullDocumentCard
-            images={fullDoc}
-            pageCount={result.pageCount}
-            fileName={result.fileName}
-          />
-        </motion.div>
         {result.regions.map((region) => (
           <motion.div key={region.kind} variants={reveal}>
             <RegionCard
@@ -120,6 +113,13 @@ export function ResultsPanel({ result }: ResultsPanelProps) {
             />
           </motion.div>
         ))}
+        <motion.div variants={reveal}>
+          <FullDocumentCard
+            images={fullDoc}
+            pageCount={result.pageCount}
+            fileName={result.fileName}
+          />
+        </motion.div>
       </motion.div>
 
       {editingRegion && isDetected(editingRegion) && editingPage && (
