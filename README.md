@@ -98,6 +98,17 @@ PNG and JPEG with `sharp`.
 A **confidence** score (0–1) accompanies each detection and is surfaced in the UI
 with a colour: green (high), amber (moderate — eyeball the crop), red (low).
 
+**Optional AI layer.** If `GEMINI_API_KEY` is set, an optional Gemini vision pass
+locates the regions and its bounding boxes override the heuristics when returned
+(falling back to them per-region on any miss or error — extraction never fails
+because of it). Each result shows whether a region was found by the **heuristics**
+or by **AI**. The heuristics remain the default, so the app works with no key and
+is never LLM-only.
+
+**Adjustable crop.** Every detected region can be re-cropped in the browser — drag
+the handles to include less or more of the page, and the preview, downloads, and
+ZIP all use the adjusted crop.
+
 ---
 
 ## Tech choices & trade-offs
@@ -170,6 +181,8 @@ The live demo runs the client on Vercel and the backend on Heroku.
 | --- | --- | --- |
 | server | `PORT` | Listen port (Heroku sets this; defaults to 4000). |
 | server | `CORS_ORIGINS` | Comma-separated allowed origins (defaults to `http://localhost:3000`). |
+| server | `GEMINI_API_KEY` | _Optional._ Enables the Gemini vision detection layer. Unset ⇒ heuristics only. |
+| server | `GEMINI_MODEL` | _Optional._ Detection model (defaults to `gemini-3.5-flash`). |
 | web | `NEXT_PUBLIC_API_URL` | Backend base URL (defaults to `http://localhost:4000`). |
 
 ## Testing
@@ -194,10 +207,13 @@ upload → extract → results.
   cases.
 - **Single-page assumptions** — letterhead is sought on page 1, footer/signature
   on the last page.
+- **Gemini model name** defaults to `gemini-3.5-flash`; if Google's naming
+  shifts, override with `GEMINI_MODEL`. The vision path degrades gracefully to
+  heuristics on any error.
 - **Deliberately deferred** (documented trade-offs, not oversights): `.docx`
-  input, OCR for scanned PDFs, adjustable crop handles, a raster→SVG signature,
-  and an optional vision-API refinement layer. The architecture (typed engine
-  behind a thin route, shared contract) is set up to add these cleanly.
+  input, OCR for scanned PDFs, and a raster→SVG signature. The architecture
+  (typed engine behind a thin route, shared contract) is set up to add these
+  cleanly.
 
 ## Project scripts
 
