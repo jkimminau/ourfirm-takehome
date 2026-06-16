@@ -42,8 +42,12 @@ PDF.
 1. You upload a **PDF, image (PNG/JPG), or Word `.docx`** (drag-and-drop or file
    picker), or pick a bundled sample. (`.docx` is rendered to a page image in the
    browser; images are treated as a single page.)
-2. The **server** rasterizes the pages, locates the three regions with
-   transparent heuristics, and crops each one.
+2. The **server** rasterizes the pages, locates the three regions, and crops
+   each one. Detection runs our own transparent heuristics by default; when a
+   `GEMINI_API_KEY` is configured — as it is on the live demo — an **AI vision
+   pass (Gemini)** refines or overrides them, falling back to the heuristics on
+   any miss so extraction never fails because of it. Each region shows whether
+   it was found by **AI** or the **heuristics**.
 3. The **client** shows a preview of the document alongside each extracted region
    with its detection confidence (colour-coded), the selectable text it contains,
    and one-click **PNG / JPEG** downloads — per region, the whole document as a
