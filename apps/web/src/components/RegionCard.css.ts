@@ -183,8 +183,9 @@ export const iconBtn = style({
   transitionProperty: "background-color, transform",
   transitionDuration: vars.duration.fast,
   selectors: {
-    "&:hover": { backgroundColor: vars.color.accentHover },
-    "&:active": { transform: "translateY(1px)" },
+    "&:hover:not(:disabled)": { backgroundColor: vars.color.accentHover },
+    "&:active:not(:disabled)": { transform: "translateY(1px)" },
+    "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
   },
 });
 

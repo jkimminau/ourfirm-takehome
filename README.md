@@ -1,4 +1,4 @@
-# Document Region Extractor
+# Document Extractor
 
 Upload a PDF and extract three regions — **signature**, **letterhead**, and
 **footer** — each downloadable as a **PNG or JPEG**. Built for the OurFirm Full
@@ -6,6 +6,8 @@ Stack engineering assessment.
 
 > **Live demo:** **https://ourfirm-takehome.vercel.app**
 > (client on Vercel · API on Heroku)
+
+![Document Extractor — a signed letter with its full document, letterhead, signature, and footer extracted as separate, downloadable images](docs/screenshot.png)
 
 ---
 
@@ -41,8 +43,9 @@ PDF.
 2. The **server** rasterizes the pages, locates the three regions with
    transparent heuristics, and crops each one.
 3. The **client** shows a preview of the document alongside each extracted region
-   with its detection confidence, the selectable text it contains, and one-click
-   **PNG / JPEG** downloads.
+   with its detection confidence (colour-coded), the selectable text it contains,
+   and one-click **PNG / JPEG** downloads — per region, the whole document as a
+   single image, or everything in one **ZIP**.
 
 Imperfect extraction is expected and handled: when a region isn't present (or
 can't be found confidently) the UI says so clearly rather than guessing.
@@ -169,6 +172,19 @@ The live demo runs the client on Vercel and the backend on Heroku.
 | server | `CORS_ORIGINS` | Comma-separated allowed origins (defaults to `http://localhost:3000`). |
 | web | `NEXT_PUBLIC_API_URL` | Backend base URL (defaults to `http://localhost:4000`). |
 
+## Testing
+
+```bash
+npm test          # engine + route tests (node:test + tsx, no browser)
+npm run test:e2e  # Playwright happy-path (needs: npx playwright install chromium)
+```
+
+The engine tests cover validation (magic-byte rejection, empty, oversize) and
+detection on the sample set — including that the signature is the drawn ink and
+not the footer, and that absent regions report `not_detected`. Route tests use
+Fastify's in-process `inject`. The e2e drives a real browser through
+upload → extract → results.
+
 ## Known limitations & what I'd do with more time
 
 - **Signature detection** is tuned and verified against the sample set, but the
@@ -179,10 +195,9 @@ The live demo runs the client on Vercel and the backend on Heroku.
 - **Single-page assumptions** — letterhead is sought on page 1, footer/signature
   on the last page.
 - **Deliberately deferred** (documented trade-offs, not oversights): `.docx`
-  input, OCR for scanned PDFs, adjustable crop handles, batch upload + ZIP
-  download, a raster→SVG signature, an optional vision-API refinement layer, and
-  an automated test suite. The architecture (typed engine behind a thin route,
-  shared contract) is set up to add these cleanly.
+  input, OCR for scanned PDFs, adjustable crop handles, a raster→SVG signature,
+  and an optional vision-API refinement layer. The architecture (typed engine
+  behind a thin route, shared contract) is set up to add these cleanly.
 
 ## Project scripts
 
@@ -190,6 +205,8 @@ The live demo runs the client on Vercel and the backend on Heroku.
 | --- | --- |
 | `npm run dev` | Run web + server with hot reload. |
 | `npm run build` | Build server then web. |
+| `npm test` | Engine + route tests. |
+| `npm run test:e2e` | Playwright end-to-end test. |
 | `npm run samples` | Regenerate the sample PDFs. |
 | `docker compose up --build` | Run the whole app in containers. |
 
