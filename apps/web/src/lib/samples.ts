@@ -40,6 +40,24 @@ export const SAMPLE_DOCS: SampleDoc[] = [
     kind: "valid",
   },
   {
+    file: "/samples/letter-photo.png",
+    fileName: "letter-photo.png",
+    name: "Letter image",
+    description:
+      "A letter as a PNG — processed as a single page (no text layer, so AI is recommended).",
+    meta: "image",
+    kind: "valid",
+  },
+  {
+    file: "/samples/letter.docx",
+    fileName: "letter.docx",
+    name: "Word document",
+    description:
+      "A .docx letter, rendered to a page image in the browser before extraction.",
+    meta: "docx",
+    kind: "valid",
+  },
+  {
     file: "/samples/corrupt.pdf",
     fileName: "corrupt.pdf",
     name: "Damaged file",

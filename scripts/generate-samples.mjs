@@ -14,6 +14,8 @@ import PDFDocument from "pdfkit";
 import { createWriteStream, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import sharp from "sharp";
+import { Document, Packer, Paragraph, TextRun, AlignmentType } from "docx";
 
 const OUT = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -240,6 +242,60 @@ async function serviceAgreement() {
   return write(doc, "service-agreement.pdf");
 }
 
+// --- letter-photo.png (image input) ---------------------------------------
+// A letter rendered as a flat image (no text layer) — exercises the image
+// pipeline. SVG → PNG via sharp so it's reproducible and cross-platform.
+async function imageLetter() {
+  const line = (x, y, w) =>
+    `<rect x="${x}" y="${y}" width="${w}" height="8" rx="4" fill="#e7e3d6"/>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+    <rect width="${W}" height="${H}" fill="#ffffff"/>
+    <text x="${M}" y="74" font-family="Helvetica, Arial" font-size="24" font-weight="bold" fill="${INK}">Northwind Stationers</text>
+    <text x="${M}" y="96" font-family="Helvetica, Arial" font-size="11" fill="${MUTED}">Fine paper &amp; correspondence since 1962</text>
+    <rect x="${M}" y="106" width="${CONTENT_W}" height="2" fill="${ACCENT}"/>
+    <text x="${M}" y="150" font-family="Helvetica, Arial" font-size="11" fill="${MUTED}">April 12, 2026</text>
+    ${[200, 222, 244, 266, 300, 322, 344].map((y, i) => line(M, y, CONTENT_W - (i % 3) * 60)).join("")}
+    <text x="${M}" y="430" font-family="Helvetica, Arial" font-size="11" fill="${INK}">Sincerely,</text>
+    <path d="M${M} 480 C ${M + 22} 452, ${M + 38} 456, ${M + 46} 486 C ${M + 54} 512, ${M + 76} 466, ${M + 96} 492 C ${M + 114} 512, ${M + 132} 470, ${M + 168} 480"
+      fill="none" stroke="${INK_BLUE}" stroke-width="2.2" stroke-linecap="round"/>
+    <text x="${M}" y="520" font-family="Helvetica, Arial" font-size="11" font-weight="bold" fill="${INK}">Eleanor Whitfield</text>
+    <rect x="${M}" y="${H - 64}" width="${CONTENT_W}" height="1" fill="#cdcabf"/>
+    <text x="${M}" y="${H - 44}" font-family="Helvetica, Arial" font-size="8" fill="${MUTED}">Northwind Stationers · Confidential — intended only for the named recipient.</text>
+  </svg>`;
+  await sharp(Buffer.from(svg)).png().toFile(join(OUT, "letter-photo.png"));
+  return "letter-photo.png";
+}
+
+// --- letter.docx (Word input) ---------------------------------------------
+async function wordLetter() {
+  const p = (text, opts = {}) =>
+    new Paragraph({ children: [new TextRun({ text, ...opts })], spacing: { after: 160 }, ...opts.para });
+  const doc = new Document({
+    sections: [
+      {
+        children: [
+          new Paragraph({
+            children: [new TextRun({ text: "Northwind Stationers", bold: true, size: 40 })],
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "Fine paper & correspondence since 1962", color: "6b6b62", size: 20 })],
+            spacing: { after: 320 },
+          }),
+          p("April 12, 2026"),
+          p("Dear Ms. Cross,"),
+          p("Thank you for selecting Northwind Stationers to produce the letterhead and correspondence cards for your new studio. We have reserved press time for the first run later this month."),
+          p("Enclosed you will find proofs for the primary letterhead and the matching envelopes. Once approved, we will move directly to production."),
+          p("Sincerely,", { para: { spacing: { before: 240, after: 480 } } }),
+          new Paragraph({ children: [new TextRun({ text: "Eleanor Whitfield", bold: true })] }),
+          new Paragraph({ children: [new TextRun({ text: "Managing Director", color: "6b6b62" })] }),
+        ],
+      },
+    ],
+  });
+  writeFileSync(join(OUT, "letter.docx"), await Packer.toBuffer(doc));
+  return "letter.docx";
+}
+
 // --- error inputs ----------------------------------------------------------
 function errorInputs() {
   writeFileSync(
@@ -258,6 +314,8 @@ const made = await Promise.all([
   signedLetter(),
   projectMemo(),
   serviceAgreement(),
+  imageLetter(),
+  wordLetter(),
 ]);
 errorInputs();
 made.push("corrupt.pdf", "not-a-pdf.pdf");

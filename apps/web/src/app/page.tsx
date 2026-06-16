@@ -121,7 +121,7 @@ export default function Home() {
         const res = await fetch(doc.file);
         if (!res.ok) throw new Error("missing");
         const blob = await res.blob();
-        runExtraction(new File([blob], doc.fileName, { type: "application/pdf" }));
+        runExtraction(new File([blob], doc.fileName, { type: blob.type }));
       } catch {
         setRejection("That sample couldn't be loaded. Please try another.");
       }
