@@ -4,8 +4,8 @@ Upload a PDF and extract three regions — **signature**, **letterhead**, and
 **footer** — each downloadable as a **PNG or JPEG**. Built for the OurFirm Full
 Stack engineering assessment.
 
-> **Live demo:** _client_ → (Vercel, link added after deploy) · _API_ →
-> (Heroku, link added after deploy)
+> **Live demo:** **https://ourfirm-takehome.vercel.app**
+> (client on Vercel · API on Heroku)
 
 ---
 
@@ -150,11 +150,16 @@ Bundled in `apps/web/public/samples/` and offered in the in-app gallery
 
 ## Deployment
 
-- **Client → Vercel.** Root directory `apps/web`; set `NEXT_PUBLIC_API_URL` to the
-  backend URL.
-- **Backend → Heroku** (container stack), built remotely from
-  `apps/server/Dockerfile` via `heroku.yml`. Set `CORS_ORIGINS` to the client's
-  URL. The same Docker image runs locally, on Heroku, or on any container host.
+The live demo runs the client on Vercel and the backend on Heroku.
+
+- **Client → Vercel.** A root `vercel.json` builds the `@ourfirm/web` workspace
+  (`outputDirectory: apps/web/.next`) so the monorepo install resolves
+  `@ourfirm/shared`. Set `NEXT_PUBLIC_API_URL` to the backend URL.
+- **Backend → Heroku** (container stack), built remotely from `Dockerfile.server`
+  via `heroku.yml` — no local Docker needed. Set `CORS_ORIGINS` to the client's
+  URL. The same image runs locally (`docker compose`), on Heroku, or any
+  container host. (Heroku uses the Dockerfile's directory as build context, which
+  is why the Dockerfiles live at the repo root.)
 
 ### Environment variables
 
