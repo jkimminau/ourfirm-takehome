@@ -245,6 +245,11 @@ async function requestModel(
         responseSchema: RESPONSE_SCHEMA,
         // Detection is deterministic-ish; keep it from wandering.
         temperature: 0,
+        // Disable "thinking". Flash models otherwise spend hundreds of latent
+        // thinking tokens before answering (seconds of latency, worse under
+        // load), which was timing the call out. Box detection doesn't need it,
+        // and turning it off keeps each call comfortably inside the timeout.
+        thinkingConfig: { thinkingBudget: 0 },
       },
     }),
     config.geminiTimeoutMs,

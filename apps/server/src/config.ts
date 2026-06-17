@@ -57,11 +57,13 @@ export const config = {
     process.env.GEMINI_FALLBACK_MODELS ?? DEFAULT_FALLBACK_MODELS,
   ),
   /**
-   * Max time to wait on a Gemini call before giving up and falling back to the
-   * heuristics. Bounds the wait when the service is slow/unreachable (a
-   * rate-limit 429 already returns fast).
+   * Max time to wait on a SINGLE model's Gemini call before moving to the next
+   * model in the chain. Kept tight (8s) so the whole chain (primary + fallbacks)
+   * stays well inside the platform's ~30s request limit; with thinking disabled
+   * a healthy call returns in a few seconds, so this only trips on a slow/
+   * overloaded model — exactly when we want to fail over fast.
    */
-  geminiTimeoutMs: Number(process.env.GEMINI_TIMEOUT_MS ?? 12000),
+  geminiTimeoutMs: Number(process.env.GEMINI_TIMEOUT_MS ?? 8000),
 } as const;
 
 /** True when the optional Gemini vision layer is configured (API key present). */
