@@ -301,6 +301,15 @@ export async function detectSignature(
     message: "No signature found in the lower portion of the last page.",
   };
 
+  // This heuristic discriminates drawn ink from printed text using the PDF text
+  // layer (text-overlap is the dominant signal below; closing-word anchors are
+  // the secondary one). Image / .docx / scanned inputs have NO text layer, so
+  // every cluster reads as "ink with no words under it" and the entire body
+  // would score as a signature. Without that signal we cannot honestly isolate
+  // a signature, so we decline here and let the AI vision layer (which reads the
+  // pixels) handle these inputs — see README "Known limitations".
+  if (lastPage.words.length === 0) return empty;
+
   // Footer band (page-pixel Y); the signature lives above it. Add a small
   // margin so disclaimer descenders / a footer rule never bleed into the
   // candidate area.

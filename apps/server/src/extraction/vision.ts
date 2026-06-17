@@ -79,8 +79,11 @@ const KIND_GUIDANCE: Record<RegionKind, string> = {
     "footer: the fine print at the VERY BOTTOM of the page " +
     "(page numbers, disclaimers, confidentiality notices). Not body text.",
   signature:
-    "signature: a HANDWRITTEN ink signature near the closing of the letter " +
-    "(a drawn squiggle, NOT typed text, NOT the printed/typed name).",
+    "signature: the signer's sign-off near the closing of the letter. Prefer " +
+    "a HANDWRITTEN ink signature (a drawn squiggle) when one is present; if " +
+    "there is NO handwriting, fall back to the closing block — the sign-off " +
+    'line (e.g. "Sincerely,"), the signer\'s typed name, and their title. ' +
+    "Never select body paragraphs or the footer.",
 };
 
 /** Gemini box: [ymin, xmin, ymax, xmax], each 0–1000, top-left origin. */

@@ -122,6 +122,10 @@ test("an image is processed as a single-page document", async () => {
   // No vision key in the test env → heuristic detection; a letter-like image
   // should at least yield the positional letterhead.
   assert.equal(byKind(result.regions).letterhead.status, "detected");
+  // The signature heuristic relies on the text layer, which an image lacks, so
+  // it declines rather than grabbing the whole letter body. (The AI layer is
+  // responsible for signatures on text-layer-less inputs.)
+  assert.equal(byKind(result.regions).signature.status, "not_detected");
 });
 
 test("a non-document image is rejected as NOT_A_DOCUMENT", async () => {
