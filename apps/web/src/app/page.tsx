@@ -179,7 +179,6 @@ export default function Home() {
 
       <Container as="footer" className={footer}>
         <span>Built for the OurFirm engineering assessment</span>
-        <span>Heuristics-first · TypeScript</span>
       </Container>
 
       <SamplePicker
