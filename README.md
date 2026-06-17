@@ -43,7 +43,7 @@ PDF.
    picker), or pick a bundled sample. (`.docx` is rendered to a page image in the
    browser; images are treated as a single page.)
 2. The **server** rasterizes the pages, locates the three regions, and crops
-   each one. Detection runs our own transparent heuristics by default; when a
+   each one. Detection runs the built-in heuristics by default; when a
    `GEMINI_API_KEY` is configured — as it is on the live demo — an **AI vision
    pass (Gemini)** refines or overrides them, falling back to the heuristics on
    any miss so extraction never fails because of it. Each region shows whether
@@ -82,24 +82,22 @@ ourfirm-takehome/
 
 ### How extraction works (the heuristics)
 
-Region detection is **our own logic**, not a black box. Each page is rasterized
-at ~2× (≈144 DPI) with `pdfjs-dist` + `@napi-rs/canvas`; the PDF text layer is
-read in the same pass so text positions share the image's coordinate system.
+Each page is rasterized at ~2× (≈144 DPI) with `pdfjs-dist` + `@napi-rs/canvas`,
+and the PDF text layer is read in the same pass so text positions share the
+image's coordinate system.
 
 | Region | Approach |
 | --- | --- |
 | **Letterhead** | Top band of page 1; tightened to the ink bounding box. |
 | **Footer** | Bottom band of the last page; same ink-tightening. |
-| **Signature** | The interesting one (see below). |
+| **Signature** | Drawn ink near the closing, separated from typed text (see below). |
 
-**Signatures** are detected by a key insight: a real signature is **drawn ink
-with no text-layer words underneath it**, whereas a footer or a typed name *is*
-text. So the detector searches the area *below the letterhead and above the
-footer* (the footer band is excluded outright), finds connected ink clusters,
-and strongly prefers clusters with **low text-layer overlap** — rejecting printed
-text. It also biases toward ink just below a closing anchor ("Sincerely",
-"Regards", "IN WITNESS WHEREOF", "PROVIDER", "By:"). Crops are encoded to both
-PNG and JPEG with `sharp`.
+**Signatures** are detected as **drawn ink with no text-layer words underneath
+it** — unlike a footer or a typed name, which are text. The detector searches
+below the letterhead and above the footer, groups connected ink into clusters,
+and prefers clusters with little text-layer overlap, rejecting printed text. It
+also favors ink just below a closing line ("Sincerely", "Regards", "PROVIDER",
+"By:"). Crops are encoded to both PNG and JPEG with `sharp`.
 
 A **confidence** score (0–1) accompanies each detection and is surfaced in the UI
 with a colour: green (high), amber (moderate — eyeball the crop), red (low).
@@ -108,8 +106,7 @@ with a colour: green (high), amber (moderate — eyeball the crop), red (low).
 locates the regions and its bounding boxes override the heuristics when returned
 (falling back to them per-region on any miss or error — extraction never fails
 because of it). Each result shows whether a region was found by the **heuristics**
-or by **AI**. The heuristics remain the default, so the app works with no key and
-is never LLM-only.
+or by **AI**. The heuristics remain the default, so the app works with no key.
 
 > **Scanned PDFs & images are handled by this AI layer.** Because Gemini reads the
 > rendered page *pixels*, it doesn't need a text layer — so scanned/photographed
@@ -126,8 +123,8 @@ ZIP all use the adjusted crop.
 
 ## Tech choices & trade-offs
 
-- **TypeScript everywhere** (required), strict mode, shared contract package.
-- **Next.js 16 (App Router)** for the client — first-class Vercel deploys, React
+- **TypeScript everywhere**, strict mode, shared contract package.
+- **Next.js 16 (App Router)** for the client — native Vercel deploys and
   framework familiarity. **Fastify 5** for the server — mature multipart uploads,
   schema validation, and a clean centralized error handler.
 - **Linaria** for styling rather than Tailwind — zero-runtime CSS-in-JS, with
@@ -150,9 +147,8 @@ ZIP all use the adjusted crop.
 
 ## Error handling
 
-Errors are a first-class feature — every failure is a typed code mapped to a
-safe, human-readable message (never a raw stack trace), defined in
-`@ourfirm/shared`:
+Every failure is a typed code mapped to a safe, human-readable message (never a
+raw stack trace), defined in `@ourfirm/shared`:
 
 | Situation | Code | What the user sees |
 | --- | --- | --- |
@@ -236,9 +232,12 @@ upload → extract → results.
 - **Image & `.docx` inputs.** Images are processed as a single page; `.docx` is
   rendered to an image in the browser (`docx-preview` → canvas) — best-effort
   fidelity, since `.docx` has no fixed page geometry. Both lack a text layer, so
-  the heuristics degrade like a scanned PDF; the AI layer is recommended for
-  these. Non-document images are rejected (`NOT_A_DOCUMENT`) — via Gemini when
-  enabled, else a light pixel heuristic.
+  the heuristics degrade like a scanned PDF: the positional letterhead/footer
+  still work, but the signature heuristic (which needs the text layer to tell
+  drawn ink from typed text) **declines rather than guess**, deferring to the AI
+  layer — which captures the handwritten signature, or the typed sign-off block
+  when there's no handwriting. Non-document images are rejected
+  (`NOT_A_DOCUMENT`) — via Gemini when enabled, else a light pixel heuristic.
 - **AI is best-effort and degrades gracefully.** If a Gemini call fails for any
   reason (rate/quota/token limit, auth, network, safety block), extraction falls
   back to the in-repo heuristics and the result carries a non-blocking `notice`
