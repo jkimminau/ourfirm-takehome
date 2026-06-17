@@ -192,8 +192,9 @@ The live demo runs the client on Vercel and the backend on Heroku.
 | server | `PORT` | Listen port (Heroku sets this; defaults to 4000). |
 | server | `CORS_ORIGINS` | Comma-separated allowed origins (defaults to `http://localhost:3000`). |
 | server | `GEMINI_API_KEY` | _Optional._ Enables the Gemini vision detection layer. Unset ⇒ heuristics only. |
-| server | `GEMINI_MODEL` | _Optional._ Detection model (defaults to `gemini-3.5-flash`). |
-| server | `GEMINI_TIMEOUT_MS` | _Optional._ Vision call timeout before falling back (default 12000). |
+| server | `GEMINI_MODEL` | _Optional._ Primary detection model (defaults to `gemini-3.5-flash`). |
+| server | `GEMINI_FALLBACK_MODELS` | _Optional._ Comma-separated models tried, in order, if the primary fails (default `gemini-2.5-flash,gemini-2.0-flash`). |
+| server | `GEMINI_TIMEOUT_MS` | _Optional._ Per-model vision call timeout before trying the next (default 12000). |
 | web | `NEXT_PUBLIC_API_URL` | Backend base URL (defaults to `http://localhost:4000`). |
 
 ## Testing
@@ -218,9 +219,13 @@ upload → extract → results.
   cases.
 - **Single-page assumptions** — letterhead is sought on page 1, footer/signature
   on the last page.
-- **Gemini model name** defaults to `gemini-3.5-flash`; if Google's naming
-  shifts, override with `GEMINI_MODEL`. The vision path degrades gracefully to
-  heuristics on any error.
+- **Gemini model chain.** The primary model (`GEMINI_MODEL`, default
+  `gemini-3.5-flash`) is tried first, then each fallback
+  (`GEMINI_FALLBACK_MODELS`, default `gemini-2.5-flash,gemini-2.0-flash`). Even a
+  healthy model can return a transient 503 ("experiencing high demand"), so the
+  chain rides that out by trying the next model before degrading to the
+  heuristics. The vision path degrades gracefully to heuristics only if every
+  model fails.
 - **Scanned PDFs (no text layer).** A scanned PDF is just an image of a page —
   there's no selectable text, so the text-driven heuristics (closing-word
   anchors, "ink with no text under it") degrade and the "Text content" panel is

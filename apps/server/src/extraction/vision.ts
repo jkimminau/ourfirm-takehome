@@ -149,9 +149,13 @@ function getClient(): GoogleGenAI {
  * the page is a document. Returns the boxes (page-pixel space) for the kinds
  * the model found, plus `isDocument`. Kinds the model couldn't find are absent.
  *
- * Any failure (missing key, auth, network, 5xx, rate/quota, empty/unparseable
- * response) is classified and thrown as a typed `VisionError` so the caller can
- * apply per-input-type policy. Never throws an unclassified error.
+ * Tries each model in `config.geminiModels` in order: the primary model first,
+ * then each fallback. A single model can return a transient 503 ("experiencing
+ * high demand") even when the key and account are healthy, so we move to the
+ * next model on ANY failure (503/timeout/rate-limit/etc.) rather than giving up.
+ * Only when EVERY model fails do we throw — the last failure, classified as a
+ * typed `VisionError` so the caller can apply per-input-type policy and fall
+ * back to the heuristics. Never throws an unclassified error.
  */
 export async function detectRegionsWithVision(
   page: RasterPage,
@@ -165,8 +169,33 @@ export async function detectRegionsWithVision(
     throw classifyVisionError(error);
   }
 
+  const prompt = buildPrompt(kinds);
+
+  let lastError: VisionError | null = null;
+  for (const model of config.geminiModels) {
+    try {
+      return await requestModel(ai, model, prompt, page, kinds);
+    } catch (error) {
+      const visionError = classifyVisionError(error);
+      lastError = visionError;
+      // Observability: record which model failed and why, then try the next.
+      console.warn(
+        `[vision] model "${model}" failed (${visionError.kind}): ${visionError.message}`,
+      );
+    }
+  }
+
+  // Every model in the chain failed — surface the last failure so the caller
+  // maps it to a notice and falls back to the heuristics.
+  throw (
+    lastError ?? new VisionError("unavailable", "No vision model is configured.")
+  );
+}
+
+/** The detection prompt (model-independent), built from the requested kinds. */
+function buildPrompt(kinds: RegionKind[]): string {
   const wanted = kinds.map((k) => `- ${KIND_GUIDANCE[k]}`).join("\n");
-  const prompt =
+  return (
     "You are a precise document-layout detector. First decide whether the " +
     "image is a DOCUMENT (a letter, form, scan, memo, invoice, contract, " +
     "etc.) as opposed to a photo, artwork, or other picture, and report that " +
@@ -176,40 +205,50 @@ export async function detectRegionsWithVision(
     "Return one `regions` entry per region you can locate, using exactly " +
     `these \`kind\` values: ${kinds.join(", ")}. If a region is not present, ` +
     "omit it entirely — do not guess. Each box must be [ymin, xmin, ymax, " +
-    "xmax] normalized to 0-1000 with the origin at the top-left corner.";
+    "xmax] normalized to 0-1000 with the origin at the top-left corner."
+  );
+}
 
-  let response: Awaited<ReturnType<typeof ai.models.generateContent>>;
-  try {
-    response = await withTimeout(
-      ai.models.generateContent({
-        model: config.geminiModel,
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { text: prompt },
-              {
-                inlineData: {
-                  mimeType: "image/png",
-                  data: page.png.toString("base64"),
-                },
+/**
+ * One attempt against a single model: call generateContent (bounded by the
+ * timeout), then parse the structured response into boxes + `isDocument`.
+ * Throws a `VisionError` (empty/unparseable) or a raw SDK error (network/5xx/
+ * rate-limit/timeout) — the caller classifies and decides whether to fall back
+ * to the next model.
+ */
+async function requestModel(
+  ai: GoogleGenAI,
+  model: string,
+  prompt: string,
+  page: RasterPage,
+  kinds: RegionKind[],
+): Promise<VisionPageResult> {
+  const response = await withTimeout(
+    ai.models.generateContent({
+      model,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                mimeType: "image/png",
+                data: page.png.toString("base64"),
               },
-            ],
-          },
-        ],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: RESPONSE_SCHEMA,
-          // Detection is deterministic-ish; keep it from wandering.
-          temperature: 0,
+            },
+          ],
         },
-      }),
-      config.geminiTimeoutMs,
-    );
-  } catch (error) {
-    // Network / auth / 5xx / rate-limit / safety block / timeout surface here.
-    throw classifyVisionError(error);
-  }
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: RESPONSE_SCHEMA,
+        // Detection is deterministic-ish; keep it from wandering.
+        temperature: 0,
+      },
+    }),
+    config.geminiTimeoutMs,
+  );
 
   const raw = response.text;
   if (!raw) {
